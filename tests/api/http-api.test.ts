@@ -213,4 +213,74 @@ describe('HTTP API', () => {
 
     await app.close();
   });
+
+  it('VIEWER/MEMBERは自己口座のみ参照できる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-read', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const user1Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-read', ownerType: 'USER', ownerId: 'u1' }
+    });
+    const user2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-read', ownerType: 'USER', ownerId: 'u2' }
+    });
+    const system = systemRes.json();
+    const user1 = user1Res.json();
+    const user2 = user2Res.json();
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rbac-read',
+        txType: 'EARN',
+        entries: [
+          { accountId: user1.accountId, amount: 60, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -60 }
+        ]
+      }
+    });
+
+    const viewerList = await app.inject({
+      method: 'GET',
+      url: '/api/v1/accounts?tenantId=t-rbac-read',
+      headers: { 'x-role': 'VIEWER', 'x-user-id': 'u2' }
+    });
+    expect(viewerList.statusCode).toBe(200);
+    expect(viewerList.json()).toHaveLength(1);
+    expect(viewerList.json()[0]?.ownerId).toBe('u2');
+
+    const viewerOther = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user1.accountId}?tenantId=t-rbac-read`,
+      headers: { 'x-role': 'VIEWER', 'x-user-id': 'u2' }
+    });
+    expect(viewerOther.statusCode).toBe(403);
+
+    const memberTxs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rbac-read',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u2' }
+    });
+    expect(memberTxs.statusCode).toBe(200);
+    expect(memberTxs.json()).toHaveLength(0);
+
+    const memberTxsOwner = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rbac-read',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u1' }
+    });
+    expect(memberTxsOwner.statusCode).toBe(200);
+    expect(memberTxsOwner.json().length).toBeGreaterThan(0);
+
+    expect(user2.ownerId).toBe('u2');
+    await app.close();
+  });
 });

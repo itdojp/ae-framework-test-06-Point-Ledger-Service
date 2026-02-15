@@ -19,10 +19,10 @@
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (20 tests)
+- `pnpm run test`: pass (21 tests)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T132819Z/phase2-summary.json`
-  - `artifacts/runs/20260215T132819Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T133100Z/phase2-summary.json`
+  - `artifacts/runs/20260215T133100Z/acceptance-vitest.json`
 
 ## 次の継続項目
 - 永続化フォーマットの後方互換ポリシー

@@ -23,7 +23,7 @@
 
 ## 検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (20 tests)
+- `pnpm run test`: pass (21 tests)
 - `scripts/ae/evaluation-run.sh`: pass
 - `ae validate --traceability`: pass
 - `ae user-stories --generate`: pass
@@ -43,6 +43,8 @@
 - `artifacts/runs/20260215T130330Z/`
   - `phase1-summary.json`
 - `artifacts/runs/20260215T132819Z/`
+  - `phase2-summary.json`
+- `artifacts/runs/20260215T133100Z/`
   - `phase2-summary.json`
 
 ## 残課題（Phase 2 以降）

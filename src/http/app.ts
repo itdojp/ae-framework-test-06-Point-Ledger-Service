@@ -21,6 +21,21 @@ function readRole(headers: Record<string, unknown>): { role: Role; userId: strin
 export function buildApp(service = new LedgerService()) {
   const app = Fastify({ logger: false });
 
+  async function ensureOwnAccount(
+    tenantId: string,
+    accountId: string,
+    role: Role,
+    userId: string | null
+  ): Promise<void> {
+    if (role === 'ADMIN') {
+      return;
+    }
+    const account = await service.getAccount(tenantId, accountId);
+    if (account.ownerType !== 'USER' || account.ownerId !== userId) {
+      throw new ForbiddenError('Cannot access another user account');
+    }
+  }
+
   app.post('/api/v1/accounts', async (request) => {
     const body = createAccountSchema.parse(request.body);
     const account = await service.createAccount(body);
@@ -29,8 +44,12 @@ export function buildApp(service = new LedgerService()) {
 
   app.get('/api/v1/accounts', async (request) => {
     const query = request.query as { tenantId?: string; ownerType?: string; ownerId?: string };
+    const auth = readRole(request.headers);
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
+    }
+    if (auth.role !== 'ADMIN') {
+      return service.listAccounts(query.tenantId, { ownerType: 'USER', ownerId: auth.userId ?? undefined });
     }
     return service.listAccounts(query.tenantId, { ownerType: query.ownerType, ownerId: query.ownerId });
   });
@@ -38,18 +57,22 @@ export function buildApp(service = new LedgerService()) {
   app.get('/api/v1/accounts/:accountId', async (request) => {
     const params = request.params as { accountId: string };
     const query = request.query as { tenantId?: string };
+    const auth = readRole(request.headers);
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
+    await ensureOwnAccount(query.tenantId, params.accountId, auth.role, auth.userId);
     return service.getAccount(query.tenantId, params.accountId);
   });
 
   app.get('/api/v1/accounts/:accountId/lots', async (request) => {
     const params = request.params as { accountId: string };
     const query = request.query as { tenantId?: string };
+    const auth = readRole(request.headers);
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
+    await ensureOwnAccount(query.tenantId, params.accountId, auth.role, auth.userId);
     return service.listLots(query.tenantId, params.accountId);
   });
 
@@ -81,10 +104,26 @@ export function buildApp(service = new LedgerService()) {
   app.get('/api/v1/transactions/:txId', async (request) => {
     const params = request.params as { txId: string };
     const query = request.query as { tenantId?: string };
+    const auth = readRole(request.headers);
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    return service.getTransactionDetail(query.tenantId, params.txId);
+    const detail = await service.getTransactionDetail(query.tenantId, params.txId);
+    if (auth.role !== 'ADMIN') {
+      const accountIds = [...new Set(detail.entries.map((entry) => entry.accountId))];
+      let visible = false;
+      for (const accountId of accountIds) {
+        const account = await service.getAccount(query.tenantId, accountId);
+        if (account.ownerType === 'USER' && account.ownerId === auth.userId) {
+          visible = true;
+          break;
+        }
+      }
+      if (!visible) {
+        throw new ForbiddenError('Cannot access another user transaction');
+      }
+    }
+    return detail;
   });
 
   app.get('/api/v1/transactions', async (request) => {
@@ -96,12 +135,17 @@ export function buildApp(service = new LedgerService()) {
       postedFrom?: string;
       postedTo?: string;
     };
+    const auth = readRole(request.headers);
 
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
 
-    return service.queryTransactions({
+    if (auth.role !== 'ADMIN' && query.accountId) {
+      await ensureOwnAccount(query.tenantId, query.accountId, auth.role, auth.userId);
+    }
+
+    const txs = await service.queryTransactions({
       tenantId: query.tenantId,
       accountId: query.accountId,
       txType: query.txType,
@@ -109,6 +153,24 @@ export function buildApp(service = new LedgerService()) {
       postedFrom: query.postedFrom,
       postedTo: query.postedTo
     });
+
+    if (auth.role === 'ADMIN') {
+      return txs;
+    }
+
+    const ownAccounts = await service.listAccounts(query.tenantId, {
+      ownerType: 'USER',
+      ownerId: auth.userId ?? undefined
+    });
+    const ownAccountIds = new Set(ownAccounts.map((account) => account.accountId));
+    const filtered = [];
+    for (const tx of txs) {
+      const detail = await service.getTransactionDetail(query.tenantId, tx.txId);
+      if (detail.entries.some((entry) => ownAccountIds.has(entry.accountId))) {
+        filtered.push(tx);
+      }
+    }
+    return filtered;
   });
 
   app.get('/api/v1/audit-logs', async (request) => {
