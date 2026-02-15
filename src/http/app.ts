@@ -6,6 +6,25 @@ import { createAccountSchema, expireSchema, postTransactionSchema, reverseSchema
 
 type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
 
+export interface ReadRateLimitOptions {
+  windowMs: number;
+  maxRequests: number;
+}
+
+export interface AppOptions {
+  readRateLimit?: ReadRateLimitOptions;
+}
+
+interface RateLimitDecision {
+  allowed: boolean;
+  retryAfterSeconds: number;
+}
+
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+
 function readRole(headers: Record<string, unknown>): { role: Role; userId: string | null } {
   const roleRaw = String(headers['x-role'] ?? 'ADMIN').toUpperCase();
   const userId = headers['x-user-id'] ? String(headers['x-user-id']) : null;
@@ -26,8 +45,62 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
   return Math.min(max, Math.max(min, Math.trunc(value)));
 }
 
-export function buildApp(service = new LedgerService()) {
+function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: string) => RateLimitDecision) | null {
+  if (!options || options.windowMs <= 0 || options.maxRequests <= 0) {
+    return null;
+  }
+  const buckets = new Map<string, RateLimitBucket>();
+
+  return (bucketId: string): RateLimitDecision => {
+    const now = Date.now();
+    const existing = buckets.get(bucketId);
+    if (!existing || now >= existing.resetAt) {
+      buckets.set(bucketId, {
+        count: 1,
+        resetAt: now + options.windowMs
+      });
+      return { allowed: true, retryAfterSeconds: 0 };
+    }
+
+    if (existing.count >= options.maxRequests) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000))
+      };
+    }
+
+    existing.count += 1;
+
+    if (buckets.size > 10000) {
+      for (const [key, bucket] of buckets.entries()) {
+        if (now >= bucket.resetAt) {
+          buckets.delete(key);
+        }
+      }
+    }
+
+    return { allowed: true, retryAfterSeconds: 0 };
+  };
+}
+
+export function buildApp(service = new LedgerService(), options?: AppOptions) {
   const app = Fastify({ logger: false });
+  const readRateLimiter = createReadRateLimiter(options?.readRateLimit);
+
+  function enforceReadRateLimit(scope: string, auth: { role: Role; userId: string | null }, tenantId: string, ip: string): void {
+    if (!readRateLimiter) {
+      return;
+    }
+    const actor = auth.userId ? `${auth.role}:${auth.userId}` : `${auth.role}:${ip}`;
+    const decision = readRateLimiter(`${scope}:${tenantId}:${actor}`);
+    if (!decision.allowed) {
+      throw new DomainError(
+        'RATE_LIMIT_EXCEEDED',
+        `Too many read requests for ${scope}. retryAfterSeconds=${decision.retryAfterSeconds}`,
+        429
+      );
+    }
+  }
 
   async function ensureOwnAccount(
     tenantId: string,
@@ -151,6 +224,7 @@ export function buildApp(service = new LedgerService()) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
+    enforceReadRateLimit('transactions', auth, query.tenantId, request.ip);
 
     if (auth.role !== 'ADMIN' && query.accountId) {
       await ensureOwnAccount(query.tenantId, query.accountId, auth.role, auth.userId);
@@ -211,6 +285,7 @@ export function buildApp(service = new LedgerService()) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
+    enforceReadRateLimit('audit-logs', auth, query.tenantId, request.ip);
     const page = parseBoundedInt(query.page, 1, 1, Number.MAX_SAFE_INTEGER);
     const pageSize = parseBoundedInt(query.pageSize, 50, 1, 200);
     const order = query.order === 'asc' ? 'asc' : 'desc';
@@ -250,6 +325,7 @@ export function buildApp(service = new LedgerService()) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
+    enforceReadRateLimit('metrics', auth, query.tenantId, request.ip);
     return service.getTenantMetrics(query.tenantId);
   });
 

@@ -57,6 +57,11 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - PostgreSQL: `LEDGER_STATE_BACKEND=postgres` + `LEDGER_DATABASE_URL` + `LEDGER_STATE_KEY`
 - 実装: `src/persistence/file-state-store.ts`, `src/persistence/postgres-state-store.ts`
 
+1.4 読取系レート制御（任意）
+- `LEDGER_READ_RATE_LIMIT_WINDOW_MS` + `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS`
+- 対象API: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
+- 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED`
+
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`
 - トリガー: `push`, `pull_request`, `schedule`, `workflow_dispatch`

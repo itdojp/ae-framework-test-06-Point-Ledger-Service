@@ -65,6 +65,10 @@ node scripts/acceptance/generate-lgacc-summary.mjs \
   - クエリ: `tenantId`(必須)
   - 権限: `ADMIN` のみ
   - 応答: account/transaction/lot/audit の件数メトリクス
+- 読取系レート制御（任意）
+  - 対象: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
+  - `LEDGER_READ_RATE_LIMIT_WINDOW_MS` と `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS` を正の整数で同時指定すると有効
+  - 超過時は `429` (`RATE_LIMIT_EXCEEDED`) を返却
 
 ## 中間生成物の保存方針
 - `artifacts/`、`.ae/`、`.kiro/` を Git 管理対象にする。

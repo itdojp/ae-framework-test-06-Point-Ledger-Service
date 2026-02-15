@@ -8,6 +8,12 @@ const port = Number(process.env['PORT'] ?? 3000);
 const host = process.env['HOST'] ?? '0.0.0.0';
 const stateFilePath = process.env['LEDGER_STATE_FILE'];
 const stateBackend = process.env['LEDGER_STATE_BACKEND'] ?? (stateFilePath ? 'file' : 'none');
+const readRateLimitWindowMs = Number(process.env['LEDGER_READ_RATE_LIMIT_WINDOW_MS'] ?? 0);
+const readRateLimitMaxRequests = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS'] ?? 0);
+
+function isPositiveInt(value: number): boolean {
+  return Number.isFinite(value) && Number.isInteger(value) && value > 0;
+}
 
 async function createStateStore(): Promise<StateStore | null> {
   if (stateBackend === 'none') {
@@ -35,7 +41,15 @@ const stateStore = await createStateStore();
 const service = new LedgerService({ stateFilePath, stateStore: stateStore ?? undefined });
 await service.loadState();
 
-const app = buildApp(service);
+const app = buildApp(service, {
+  readRateLimit:
+    isPositiveInt(readRateLimitWindowMs) && isPositiveInt(readRateLimitMaxRequests)
+      ? {
+          windowMs: readRateLimitWindowMs,
+          maxRequests: readRateLimitMaxRequests
+        }
+      : undefined
+});
 app.addHook('onClose', async () => {
   if (stateStore?.close) {
     await stateStore.close();

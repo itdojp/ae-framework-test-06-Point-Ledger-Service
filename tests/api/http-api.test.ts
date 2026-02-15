@@ -407,4 +407,56 @@ describe('HTTP API', () => {
     expect(user2.ownerId).toBe('u2');
     await app.close();
   });
+
+  it('読取系レート制御を超過すると429になる', async () => {
+    const app = buildApp(undefined, {
+      readRateLimit: {
+        windowMs: 60_000,
+        maxRequests: 1
+      }
+    });
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate', ownerType: 'USER', ownerId: 'u-rate' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earnRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rate',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -20 }
+        ]
+      }
+    });
+    expect(earnRes.statusCode).toBe(200);
+
+    const first = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(second.statusCode).toBe(429);
+    expect(second.json().code).toBe('RATE_LIMIT_EXCEEDED');
+
+    await app.close();
+  });
 });
