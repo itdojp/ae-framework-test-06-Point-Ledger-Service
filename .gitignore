@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.tmp/
+tmp/
+.tools/
+
+# Keep evaluation outputs versioned
+!.ae/
+!.ae/**
+!.kiro/
+!.kiro/**
+!artifacts/
+!artifacts/**

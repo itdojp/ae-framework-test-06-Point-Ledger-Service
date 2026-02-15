@@ -1,0 +1,37 @@
+{
+  "selectedTools": [
+    {
+      "command": "ae spec validate",
+      "phase": "Phase 0",
+      "reason": "仕様を機械可読IRに変換し、以降工程の基線にする"
+    },
+    {
+      "command": "ae spec lint",
+      "phase": "Phase 0",
+      "reason": "AE-IR整合性を自動検査する"
+    },
+    {
+      "command": "ae spec export -f kiro",
+      "phase": "Phase 0",
+      "reason": "仕様参照フォーマットを生成し、後続作業で利用する"
+    },
+    {
+      "command": "ae conformance verify/report",
+      "phase": "Phase 2+",
+      "reason": "実行時の仕様適合性を評価する"
+    },
+    {
+      "command": "test:property / test:mbt / pipelines:mutation:quick",
+      "phase": "Phase 3+",
+      "reason": "不変条件と退行耐性を定量評価する"
+    }
+  ],
+  "artifactPolicy": {
+    "trackDirectories": [
+      ".ae",
+      ".kiro",
+      "artifacts"
+    ],
+    "runDirectoryPattern": "artifacts/runs/<YYYYMMDDTHHMMSSZ>"
+  }
+}

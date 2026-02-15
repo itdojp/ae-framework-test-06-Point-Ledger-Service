@@ -1,0 +1,21 @@
+{
+  "capturedAtUtc": "2026-02-15T12:40:52Z",
+  "repository": "itdojp/ae-framework-test-06-Point-Ledger-Service",
+  "issues": {
+    "spec": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/issues/1",
+    "environment": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/issues/2",
+    "plan": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/issues/3"
+  },
+  "codex": {
+    "cliVersion": "0.101.0",
+    "sessionModelFamily": "GPT-5",
+    "configModel": "gpt-5.3-codex",
+    "configCoreModel": "gpt-5-codex"
+  },
+  "environment": {
+    "os": "Linux (WSL)",
+    "node": "v22.19.0",
+    "pnpm": "10.17.1",
+    "gh": "2.45.0"
+  }
+}

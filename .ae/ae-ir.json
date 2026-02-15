@@ -1,0 +1,338 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Point_Ledger_Service",
+    "created": "2026-02-15T12:45:45.823Z",
+    "updated": "2026-02-15T12:45:45.823Z",
+    "description": "Multi-tenant point ledger service for earning, spending, reversal, and expiration processing."
+  },
+  "glossary": [
+    {
+      "term": "Account",
+      "definition": "A balance holder that belongs to a tenant and an owner."
+    },
+    {
+      "term": "LedgerTransaction",
+      "definition": "A posted action that contains one or more ledger entries."
+    },
+    {
+      "term": "LedgerEntry",
+      "definition": "A signed amount change applied to one account."
+    },
+    {
+      "term": "PointLot",
+      "definition": "A granted point chunk with optional expiration datetime."
+    },
+    {
+      "term": "LotConsumption",
+      "definition": "A mapping from a spend transaction to consumed lots."
+    }
+  ],
+  "domain": [
+    {
+      "name": "Account",
+      "fields": [
+        {
+          "name": "accountId",
+          "type": "uuid",
+          "required": true,
+          "description": "Unique account identifier in tenant scope."
+        },
+        {
+          "name": "tenantId",
+          "type": "string",
+          "required": true,
+          "description": "Tenant identifier for strict data isolation."
+        },
+        {
+          "name": "ownerType",
+          "type": "string",
+          "required": true,
+          "description": "Owner type value such as USER or SYSTEM."
+        },
+        {
+          "name": "ownerId",
+          "type": "string",
+          "required": true,
+          "description": "Owner identifier that links account ownership."
+        },
+        {
+          "name": "allowNegative",
+          "type": "boolean",
+          "required": true,
+          "description": "Flag that controls negative balance permission."
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Operational state such as ACTIVE or SUSPENDED."
+        }
+      ]
+    },
+    {
+      "name": "LedgerTransaction",
+      "fields": [
+        {
+          "name": "txId",
+          "type": "uuid",
+          "required": true,
+          "description": "Unique transaction identifier."
+        },
+        {
+          "name": "tenantId",
+          "type": "string",
+          "required": true,
+          "description": "Tenant identifier for transaction isolation."
+        },
+        {
+          "name": "txType",
+          "type": "string",
+          "required": true,
+          "description": "Transaction type like EARN, SPEND, ADJUST, EXPIRE, or REVERSAL."
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Transaction state such as POSTED or REVERSED."
+        },
+        {
+          "name": "idempotencyKey",
+          "type": "string",
+          "required": false,
+          "description": "Optional key used to prevent duplicate posting."
+        },
+        {
+          "name": "postedAt",
+          "type": "date",
+          "required": true,
+          "description": "UTC timestamp when the transaction is posted."
+        }
+      ]
+    },
+    {
+      "name": "LedgerEntry",
+      "fields": [
+        {
+          "name": "entryId",
+          "type": "uuid",
+          "required": true,
+          "description": "Unique entry identifier."
+        },
+        {
+          "name": "txId",
+          "type": "uuid",
+          "required": true,
+          "description": "Parent transaction identifier."
+        },
+        {
+          "name": "accountId",
+          "type": "uuid",
+          "required": true,
+          "description": "Target account identifier."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "description": "Signed amount where plus means credit and minus means debit."
+        }
+      ]
+    },
+    {
+      "name": "PointLot",
+      "fields": [
+        {
+          "name": "lotId",
+          "type": "uuid",
+          "required": true,
+          "description": "Unique lot identifier."
+        },
+        {
+          "name": "accountId",
+          "type": "uuid",
+          "required": true,
+          "description": "Account identifier that owns this lot."
+        },
+        {
+          "name": "sourceTxId",
+          "type": "uuid",
+          "required": true,
+          "description": "Source transaction identifier for lot creation."
+        },
+        {
+          "name": "originalAmount",
+          "type": "number",
+          "required": true,
+          "description": "Initial lot amount at creation."
+        },
+        {
+          "name": "remainingAmount",
+          "type": "number",
+          "required": true,
+          "description": "Remaining lot amount after consumption."
+        },
+        {
+          "name": "expiresAt",
+          "type": "date",
+          "required": false,
+          "description": "Optional UTC datetime for lot expiration."
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Lot state such as ACTIVE, CONSUMED, EXPIRED, or CANCELLED."
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "id": "1a81240f-7ed2-5343-87a1-31dd39354a80",
+      "description": "Sum of all entry amounts in one transaction must always be zero.",
+      "expression": "Sum of all entry amounts in one transaction must always be zero.",
+      "entities": [],
+      "severity": "error"
+    },
+    {
+      "id": "628dab44-0ff2-5eca-b327-a19578de6771",
+      "description": "Accounts with allowNegative set to false must never have a negative balance.",
+      "expression": "Accounts with allowNegative set to false must never have a negative balance.",
+      "entities": [
+        "Account"
+      ],
+      "severity": "error"
+    },
+    {
+      "id": "17f1695e-2096-5ef0-afa2-ea88da3ce342",
+      "description": "Remaining amount in each lot must stay between zero and original amount.",
+      "expression": "Remaining amount in each lot must stay between zero and original amount.",
+      "entities": [
+        "PointLot"
+      ],
+      "severity": "error"
+    },
+    {
+      "id": "b84f7bbb-f3c1-5422-bddf-e83f7ce13d7b",
+      "description": "Reversal transaction entries must be sign-inverted mirror of the source transaction.",
+      "expression": "Reversal transaction entries must be sign-inverted mirror of the source transaction.",
+      "entities": [],
+      "severity": "error"
+    }
+  ],
+  "usecases": [
+    {
+      "name": "Earn Points",
+      "actor": "User",
+      "steps": [
+        {
+          "step": 1,
+          "description": "Administrator or system grants points to a user account.",
+          "type": "action"
+        },
+        {
+          "step": 2,
+          "description": "System optionally creates a lot when expiration is specified.",
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "name": "Spend Points",
+      "actor": "User",
+      "steps": [
+        {
+          "step": 1,
+          "description": "User spends points from a user account.",
+          "type": "action"
+        },
+        {
+          "step": 2,
+          "description": "System consumes lots by FEFO ordering with deterministic tie-break.",
+          "type": "action"
+        },
+        {
+          "step": 3,
+          "description": "System rolls back the transaction when balance is insufficient.",
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "name": "Reverse Transaction",
+      "actor": "User",
+      "steps": [
+        {
+          "step": 1,
+          "description": "Authorized operator reverses a posted transaction.",
+          "type": "action"
+        },
+        {
+          "step": 2,
+          "description": "System creates a reversal transaction with mirrored entry signs.",
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "name": "Expire Lots",
+      "actor": "User",
+      "steps": [
+        {
+          "step": 1,
+          "description": "Batch process finds expired active lots.",
+          "type": "action"
+        },
+        {
+          "step": 2,
+          "description": "System moves remaining amount to zero and posts expire transaction.",
+          "type": "action"
+        }
+      ]
+    }
+  ],
+  "api": [
+    {
+      "method": "POST",
+      "path": "/api/v1/accounts",
+      "summary": "Create account in tenant scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "summary": "Search accounts by owner and type."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/accounts/:accountId",
+      "summary": "Get account details with current balance."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/transactions",
+      "summary": "Post EARN, SPEND, or ADJUST transaction."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/transactions/:txId",
+      "summary": "Get transaction detail and linked entries."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/transactions",
+      "summary": "Search transactions by filters."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/transactions/:txId/reverse",
+      "summary": "Reverse a posted transaction."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/accounts/:accountId/lots",
+      "summary": "List lots for audit and troubleshooting."
+    }
+  ]
+}

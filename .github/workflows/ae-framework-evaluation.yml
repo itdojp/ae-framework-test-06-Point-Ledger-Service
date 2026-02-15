@@ -1,0 +1,79 @@
+name: ae-framework-evaluation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "spec/**"
+      - "docs/**"
+      - "scripts/ae/**"
+      - ".github/workflows/ae-framework-evaluation.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "spec/**"
+      - "docs/**"
+      - "scripts/ae/**"
+      - ".github/workflows/ae-framework-evaluation.yml"
+  schedule:
+    - cron: "20 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout ae-framework
+        uses: actions/checkout@v4
+        with:
+          repository: itdojp/ae-framework
+          ref: main
+          path: .tools/ae-framework
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: .tools/ae-framework/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install ae-framework dependencies
+        run: pnpm --dir .tools/ae-framework install --frozen-lockfile
+
+      - name: Run evaluation
+        run: AE_FRAMEWORK_DIR="$GITHUB_WORKSPACE/.tools/ae-framework" ./scripts/ae/evaluation-run.sh
+
+      - name: Upload evaluation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ae-framework-evaluation-${{ github.run_id }}
+          path: |
+            .ae/
+            .kiro/
+            artifacts/
+
+      - name: Commit generated outputs
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -n "$(git status --porcelain -- .ae .kiro artifacts)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .ae .kiro artifacts
+            git commit -m "chore: update ae-framework evaluation artifacts [skip ci]"
+            git push
+          else
+            echo "No generated changes to commit"
+          fi
