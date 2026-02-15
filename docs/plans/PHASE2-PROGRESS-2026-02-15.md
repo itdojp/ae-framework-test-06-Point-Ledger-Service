@@ -12,6 +12,7 @@
   - 互換方針文書: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
   - PostgreSQL E2E スモークテストを追加: `tests/e2e/postgres-state-store.e2e.test.ts`
   - 実行コマンドを追加: `pnpm run test:e2e:postgres`
+  - CI自動化: `.github/workflows/postgres-e2e.yml` で PostgreSQL service container 実行
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -43,10 +44,10 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (26 passed, 1 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T213823Z/phase2-summary.json`
-  - `artifacts/runs/20260215T213823Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T213823Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T214040Z/phase2-summary.json`
+  - `artifacts/runs/20260215T214040Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T214040Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
-- PostgreSQL 実行環境（Docker等）での接続E2E実行と結果保存
+- PostgreSQL E2E の定期実行結果レビュー（flake検知、再試行ポリシー）
 - レート制御の運用チューニング（path別上限、429監視メトリクス）
