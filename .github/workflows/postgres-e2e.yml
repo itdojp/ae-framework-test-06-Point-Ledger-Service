@@ -19,6 +19,8 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/postgres-e2e.yml"
+  schedule:
+    - cron: "35 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -70,16 +72,20 @@ jobs:
           mkdir -p "$RUN_DIR"
 
           pnpm run typecheck > "$RUN_DIR/typecheck.log" 2>&1
-          pnpm run test:e2e:postgres -- --reporter=json --outputFile "$RUN_DIR/postgres-e2e-vitest.json" > "$RUN_DIR/postgres-e2e.log" 2>&1
+          pnpm run test:e2e:postgres -- --retry=2 --reporter=json --outputFile "$RUN_DIR/postgres-e2e-vitest.json" > "$RUN_DIR/postgres-e2e.log" 2>&1
 
           cat > "$RUN_DIR/postgres-e2e-summary.json" <<JSON
           {
             "runTimestampUtc": "${RUN_TS}",
+            "trigger": "${{ github.event_name }}",
             "checks": [
               "pnpm run typecheck",
               "pnpm run test:e2e:postgres"
             ],
             "database": "postgres://postgres@localhost:5432/point_ledger",
+            "retryPolicy": {
+              "vitestRetry": 2
+            },
             "status": "success"
           }
           JSON

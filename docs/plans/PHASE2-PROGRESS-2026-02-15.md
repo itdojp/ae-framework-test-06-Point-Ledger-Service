@@ -13,6 +13,8 @@
   - PostgreSQL E2E スモークテストを追加: `tests/e2e/postgres-state-store.e2e.test.ts`
   - 実行コマンドを追加: `pnpm run test:e2e:postgres`
   - CI自動化: `.github/workflows/postgres-e2e.yml` で PostgreSQL service container 実行
+  - CI定期実行: `schedule` 追加（毎日）
+  - flake対策: `test:e2e:postgres --retry=2`
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -48,9 +50,9 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (29 passed, 1 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T215216Z/phase2-summary.json`
-  - `artifacts/runs/20260215T215216Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T215216Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T215420Z/phase2-summary.json`
+  - `artifacts/runs/20260215T215420Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T215420Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（flake検知、再試行ポリシー）
