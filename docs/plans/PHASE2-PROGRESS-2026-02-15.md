@@ -8,6 +8,8 @@
   - `src/persistence/postgres-state-store.ts`
   - `LEDGER_STATE_FILE` または `LEDGER_DATABASE_URL` 指定で起動時ロード、更新時オートセーブ
   - 復元時に idempotency/reversal インデックスを再構成
+  - schemaVersion なし旧スナップショットを互換読込（v1扱い）
+  - 互換方針文書: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -26,18 +28,17 @@
   - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
 
 ## テスト
-- 単体: 永続化ラウンドトリップテストを追加
+- 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込テストを追加
 - API: 監査ログフィルタ、transactionsページング、metrics権限制御テストを追加
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (23 tests)
+- `pnpm run test`: pass (24 tests)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T141317Z/phase2-summary.json`
-  - `artifacts/runs/20260215T141317Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T141317Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T141606Z/phase2-summary.json`
+  - `artifacts/runs/20260215T141606Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T141606Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
-- 永続化フォーマットの後方互換ポリシー
 - PostgreSQL 実行環境での接続E2E検証
 - 監査ログ/取引APIの運用上限設計（最大pageSize, レート制御）

@@ -709,10 +709,8 @@ export class LedgerService {
     });
   }
 
-  importState(state: LedgerPersistentState): void {
-    if (state.schemaVersion !== 1) {
-      throw new DomainError('STATE_SCHEMA_UNSUPPORTED', `Unsupported schemaVersion: ${state.schemaVersion}`, 400);
-    }
+  importState(state: LedgerPersistentState | (LedgerSnapshot & { schemaVersion?: number })): void {
+    const normalizedState = this.normalizeState(state);
 
     this.accounts.clear();
     this.balances.clear();
@@ -724,15 +722,15 @@ export class LedgerService {
     this.idempotencyToTxId.clear();
     this.reversalBySourceTxId.clear();
 
-    for (const account of state.accounts) {
+    for (const account of normalizedState.accounts) {
       this.accounts.set(account.accountId, { ...account });
     }
 
-    for (const [accountId, balance] of Object.entries(state.balances)) {
+    for (const [accountId, balance] of Object.entries(normalizedState.balances)) {
       this.balances.set(accountId, balance);
     }
 
-    for (const tx of state.transactions) {
+    for (const tx of normalizedState.transactions) {
       this.transactions.set(tx.txId, { ...tx });
       if (tx.idempotencyKey) {
         const actor = tx.createdByUserId ?? 'system';
@@ -743,25 +741,47 @@ export class LedgerService {
       }
     }
 
-    for (const entry of state.entries) {
+    for (const entry of normalizedState.entries) {
       const existing = this.entriesByTxId.get(entry.txId) ?? [];
       existing.push({ ...entry });
       this.entriesByTxId.set(entry.txId, existing);
     }
 
-    for (const lot of state.lots) {
+    for (const lot of normalizedState.lots) {
       this.lots.set(lot.lotId, { ...lot });
     }
 
-    for (const consumption of state.consumptions) {
+    for (const consumption of normalizedState.consumptions) {
       const existing = this.consumptionsBySpendTx.get(consumption.spendTxId) ?? [];
       existing.push({ ...consumption });
       this.consumptionsBySpendTx.set(consumption.spendTxId, existing);
     }
 
-    for (const log of state.auditLogs) {
+    for (const log of normalizedState.auditLogs) {
       this.auditLogs.push({ ...log });
     }
+  }
+
+  private normalizeState(
+    state: LedgerPersistentState | (LedgerSnapshot & { schemaVersion?: number })
+  ): LedgerPersistentState {
+    if ('schemaVersion' in state && state.schemaVersion !== undefined) {
+      if (state.schemaVersion !== 1) {
+        throw new DomainError('STATE_SCHEMA_UNSUPPORTED', `Unsupported schemaVersion: ${state.schemaVersion}`, 400);
+      }
+      return state as LedgerPersistentState;
+    }
+
+    return {
+      schemaVersion: 1,
+      accounts: state.accounts,
+      balances: state.balances,
+      transactions: state.transactions,
+      entries: state.entries,
+      lots: state.lots,
+      consumptions: state.consumptions,
+      auditLogs: state.auditLogs
+    };
   }
 
   private async persistIfConfigured(): Promise<void> {

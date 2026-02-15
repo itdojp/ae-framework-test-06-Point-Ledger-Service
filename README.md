@@ -10,6 +10,7 @@
 ## 参照ドキュメント
 - 開発計画: `docs/plans/INITIAL-DEVELOPMENT-PLAN.md`
 - ae-framework利用仕様: `docs/specs/AE-FRAMEWORK-UTILIZATION-SPEC.md`
+- 永続化後方互換ポリシー: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
 - 初期AE-Spec: `spec/point-ledger-service.ae.md`
 
 ## 自動実行（ローカル）

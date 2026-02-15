@@ -312,4 +312,38 @@ describe('LedgerService', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('schemaVersionなし旧スナップショットを後方互換で取り込める', async () => {
+    const { service, tenantId, userAccountId, systemAccountId } = await setup();
+
+    const first = await service.postTransaction({
+      tenantId,
+      txType: 'EARN',
+      createdByUserId: 'admin',
+      idempotencyKey: 'legacy-k1',
+      entries: [
+        { accountId: userAccountId, amount: 35, expiresAt: '2026-12-31T00:00:00.000Z' },
+        { accountId: systemAccountId, amount: -35 }
+      ]
+    });
+
+    const legacySnapshot = service.snapshot();
+    const restored = new LedgerService();
+    restored.importState(legacySnapshot);
+
+    const replay = await restored.postTransaction({
+      tenantId,
+      txType: 'EARN',
+      createdByUserId: 'admin',
+      idempotencyKey: 'legacy-k1',
+      entries: [
+        { accountId: userAccountId, amount: 35, expiresAt: '2026-12-31T00:00:00.000Z' },
+        { accountId: systemAccountId, amount: -35 }
+      ]
+    });
+
+    expect(replay.transaction.txId).toBe(first.transaction.txId);
+    const account = await restored.getAccount(tenantId, userAccountId);
+    expect(account.balance).toBe(35);
+  });
 });
