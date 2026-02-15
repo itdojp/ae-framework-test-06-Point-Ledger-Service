@@ -10,6 +10,10 @@
   - `/api/v1/transactions`
   - `/api/v1/transactions/:txId/reverse`
   - `/api/v1/batch/expire`
+- RBAC 基本実装
+  - `ADMIN/MEMBER/VIEWER` を HTTP ヘッダで判定
+  - `MEMBER` の他人口座SPENDを403で拒否
+  - `VIEWER` の取引登録を403で拒否
 - テスト実装
   - 単体テスト: `tests/unit/ledger-service.test.ts`
   - API テスト: `tests/api/http-api.test.ts`
@@ -18,7 +22,7 @@
 
 ## 検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (12 tests)
+- `pnpm run test`: pass (14 tests)
 - `scripts/ae/evaluation-run.sh`: pass
 - `ae validate --traceability`: pass
 - `ae user-stories --generate`: pass
@@ -33,6 +37,8 @@
   - `summary.json`
   - `development-summary.json`
   - `ae-extended-eval.json`
+- `artifacts/runs/20260215T130204Z/`
+  - `phase1-summary.json`
 
 ## 残課題（Phase 2 以降）
 - 永続化層（DB）導入

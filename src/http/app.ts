@@ -1,8 +1,22 @@
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
-import { DomainError } from '../domain/errors.js';
+import { DomainError, ForbiddenError } from '../domain/errors.js';
 import { LedgerService } from '../services/ledger-service.js';
 import { createAccountSchema, expireSchema, postTransactionSchema, reverseSchema } from './schemas.js';
+
+type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
+
+function readRole(headers: Record<string, unknown>): { role: Role; userId: string | null } {
+  const roleRaw = String(headers['x-role'] ?? 'ADMIN').toUpperCase();
+  const userId = headers['x-user-id'] ? String(headers['x-user-id']) : null;
+  if (roleRaw !== 'ADMIN' && roleRaw !== 'MEMBER' && roleRaw !== 'VIEWER') {
+    throw new DomainError('INVALID_ROLE', 'x-role must be ADMIN, MEMBER, or VIEWER', 400);
+  }
+  if ((roleRaw === 'MEMBER' || roleRaw === 'VIEWER') && !userId) {
+    throw new DomainError('AUTH_USER_REQUIRED', 'x-user-id is required for MEMBER/VIEWER', 400);
+  }
+  return { role: roleRaw, userId };
+}
 
 export function buildApp(service = new LedgerService()) {
   const app = Fastify({ logger: false });
@@ -41,6 +55,26 @@ export function buildApp(service = new LedgerService()) {
 
   app.post('/api/v1/transactions', async (request) => {
     const body = postTransactionSchema.parse(request.body);
+    const auth = readRole(request.headers);
+
+    if (auth.role === 'VIEWER') {
+      throw new ForbiddenError('VIEWER cannot post transactions');
+    }
+
+    if (auth.role === 'MEMBER') {
+      if (body.txType !== 'SPEND') {
+        throw new ForbiddenError('MEMBER can post SPEND only');
+      }
+      if (!body.spend) {
+        throw new DomainError('INVALID_SPEND_INPUT', 'spend is required for SPEND', 400);
+      }
+      const spendAccount = await service.getAccount(body.tenantId, body.spend.accountId);
+      if (spendAccount.ownerType !== 'USER' || spendAccount.ownerId !== auth.userId) {
+        throw new ForbiddenError('Cannot spend points from another account');
+      }
+      body.createdByUserId = body.createdByUserId ?? auth.userId;
+    }
+
     return service.postTransaction(body);
   });
 
@@ -80,11 +114,19 @@ export function buildApp(service = new LedgerService()) {
   app.post('/api/v1/transactions/:txId/reverse', async (request) => {
     const params = request.params as { txId: string };
     const body = reverseSchema.parse(request.body);
+    const auth = readRole(request.headers);
+    if (auth.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can reverse transactions');
+    }
     return service.reverseTransaction(body.tenantId, params.txId, body.actorUserId ?? null);
   });
 
   app.post('/api/v1/batch/expire', async (request) => {
     const body = expireSchema.parse(request.body);
+    const auth = readRole(request.headers);
+    if (auth.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can run expiration batch');
+    }
     return service.expireLots(body.tenantId, body.now ? new Date(body.now) : new Date());
   });
 

@@ -59,4 +59,112 @@ describe('HTTP API', () => {
 
     await app.close();
   });
+
+  it('VIEWERは取引登録できない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac', ownerType: 'USER', ownerId: 'u-rbac' }
+    });
+
+    const system = systemRes.json();
+    const user = userRes.json();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'x-role': 'VIEWER',
+        'x-user-id': 'u-rbac'
+      },
+      payload: {
+        tenantId: 't-rbac',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 100, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -100 }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it('MEMBERは他人口座のSPENDができない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-2', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const user1Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-2', ownerType: 'USER', ownerId: 'u1' }
+    });
+    const user2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-2', ownerType: 'USER', ownerId: 'u2' }
+    });
+
+    const system = systemRes.json();
+    const user1 = user1Res.json();
+    const user2 = user2Res.json();
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rbac-2',
+        txType: 'EARN',
+        entries: [
+          { accountId: user1.accountId, amount: 100, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -100 }
+        ]
+      }
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u2'
+      },
+      payload: {
+        tenantId: 't-rbac-2',
+        txType: 'SPEND',
+        spend: { accountId: user1.accountId, amount: 10 },
+        counterAccountId: system.accountId
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    const ownSpendResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u1'
+      },
+      payload: {
+        tenantId: 't-rbac-2',
+        txType: 'SPEND',
+        spend: { accountId: user1.accountId, amount: 10 },
+        counterAccountId: system.accountId
+      }
+    });
+
+    expect(ownSpendResponse.statusCode).toBe(200);
+    expect(user2.ownerId).toBe('u2');
+    await app.close();
+  });
 });
