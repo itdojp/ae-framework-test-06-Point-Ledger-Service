@@ -47,6 +47,17 @@ node scripts/acceptance/generate-lgacc-summary.mjs \
   artifacts/runs/<RUN_TS>/acceptance-lgacc-summary.json
 ```
 
+## API補足
+- `GET /api/v1/transactions`
+  - クエリ: `tenantId`(必須), `accountId`, `txType`, `externalRef`, `postedFrom`, `postedTo`, `page`, `pageSize`, `order`
+- `GET /api/v1/audit-logs`
+  - クエリ: `tenantId`(必須), `action`, `targetType`, `targetId`, `actorUserId`, `from`, `to`, `page`, `pageSize`, `order`
+  - 応答: `page`, `pageSize`, `total`, `items`
+- `GET /api/v1/metrics`
+  - クエリ: `tenantId`(必須)
+  - 権限: `ADMIN` のみ
+  - 応答: account/transaction/lot/audit の件数メトリクス
+
 ## 中間生成物の保存方針
 - `artifacts/`、`.ae/`、`.kiro/` を Git 管理対象にする。
 - ae-framework 実行で得られた生成物は、評価証跡としてコミット対象にする。

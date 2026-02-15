@@ -183,7 +183,7 @@ describe('HTTP API', () => {
     const system = systemRes.json();
     const user = userRes.json();
 
-    await app.inject({
+    const earnRes = await app.inject({
       method: 'POST',
       url: '/api/v1/transactions',
       payload: {
@@ -195,10 +195,12 @@ describe('HTTP API', () => {
         ]
       }
     });
+    expect(earnRes.statusCode).toBe(200);
+    const earnTxId = earnRes.json().transaction.txId as string;
 
     const adminLogs = await app.inject({
       method: 'GET',
-      url: '/api/v1/audit-logs?tenantId=t-audit&page=1&pageSize=10&order=desc',
+      url: `/api/v1/audit-logs?tenantId=t-audit&page=1&pageSize=10&order=desc&targetId=${earnTxId}`,
       headers: { 'x-role': 'ADMIN' }
     });
     expect(adminLogs.statusCode).toBe(200);
@@ -207,6 +209,7 @@ describe('HTTP API', () => {
     expect(logsPayload.items.length).toBeGreaterThan(0);
     expect(logsPayload.page).toBe(1);
     expect(logsPayload.pageSize).toBe(10);
+    expect(logsPayload.items.every((item: { targetId: string }) => item.targetId === earnTxId)).toBe(true);
 
     const memberLogs = await app.inject({
       method: 'GET',
@@ -214,6 +217,123 @@ describe('HTTP API', () => {
       headers: { 'x-role': 'MEMBER', 'x-user-id': 'u-audit' }
     });
     expect(memberLogs.statusCode).toBe(403);
+
+    await app.close();
+  });
+
+  it('transactions一覧はorder/page/pageSizeで取得できる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-page', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-page', ownerType: 'USER', ownerId: 'u-page' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const tx1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-tx-page',
+        txType: 'EARN',
+        externalRef: 'tx-1',
+        entries: [
+          { accountId: user.accountId, amount: 100, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -100 }
+        ]
+      }
+    });
+    expect(tx1.statusCode).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const tx2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-tx-page',
+        txType: 'ADJUST',
+        externalRef: 'tx-2',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+    expect(tx2.statusCode).toBe(200);
+
+    const page1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-tx-page&order=desc&page=1&pageSize=1'
+    });
+    expect(page1.statusCode).toBe(200);
+    expect(page1.json()).toHaveLength(1);
+    expect(page1.json()[0].externalRef).toBe('tx-2');
+
+    const page2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-tx-page&order=desc&page=2&pageSize=1'
+    });
+    expect(page2.statusCode).toBe(200);
+    expect(page2.json()).toHaveLength(1);
+    expect(page2.json()[0].externalRef).toBe('tx-1');
+
+    await app.close();
+  });
+
+  it('metricsはADMINのみ参照できる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-metrics', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-metrics', ownerType: 'USER', ownerId: 'u-metrics' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earnRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-metrics',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 25, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -25 }
+        ]
+      }
+    });
+    expect(earnRes.statusCode).toBe(200);
+
+    const adminMetrics = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-metrics',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(adminMetrics.statusCode).toBe(200);
+    const payload = adminMetrics.json();
+    expect(payload.tenantId).toBe('t-metrics');
+    expect(payload.accounts.total).toBe(2);
+    expect(payload.transactions.byType.EARN).toBeGreaterThanOrEqual(1);
+    expect(payload.auditLogs).toBeGreaterThanOrEqual(1);
+
+    const memberMetrics = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-metrics',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u-metrics' }
+    });
+    expect(memberMetrics.statusCode).toBe(403);
 
     await app.close();
   });

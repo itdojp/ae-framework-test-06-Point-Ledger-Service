@@ -13,6 +13,7 @@ import {
   PostTransactionInput,
   QueryAuditLogs,
   QueryTransactions,
+  TenantMetrics,
   TransactionDetail,
   TxType
 } from '../domain/types.js';
@@ -351,7 +352,10 @@ export class LedgerService {
         const entries = this.entriesByTxId.get(tx.txId) ?? [];
         return entries.some((entry) => entry.accountId === query.accountId);
       })
-      .sort((a, b) => a.postedAt.localeCompare(b.postedAt));
+      .sort((a, b) => {
+        const asc = a.postedAt.localeCompare(b.postedAt);
+        return query.order === 'desc' ? -asc : asc;
+      });
 
     return txs.map((tx) => ({ ...tx }));
   }
@@ -361,6 +365,7 @@ export class LedgerService {
       .filter((log) => log.tenantId === query.tenantId)
       .filter((log) => !query.action || log.action === query.action)
       .filter((log) => !query.targetType || log.targetType === query.targetType)
+      .filter((log) => !query.targetId || log.targetId === query.targetId)
       .filter((log) => !query.actorUserId || log.actorUserId === query.actorUserId)
       .filter((log) => !query.from || log.createdAt >= query.from)
       .filter((log) => !query.to || log.createdAt <= query.to)
@@ -379,9 +384,55 @@ export class LedgerService {
       .filter((log) => log.tenantId === query.tenantId)
       .filter((log) => !query.action || log.action === query.action)
       .filter((log) => !query.targetType || log.targetType === query.targetType)
+      .filter((log) => !query.targetId || log.targetId === query.targetId)
       .filter((log) => !query.actorUserId || log.actorUserId === query.actorUserId)
       .filter((log) => !query.from || log.createdAt >= query.from)
       .filter((log) => !query.to || log.createdAt <= query.to).length;
+  }
+
+  async getTenantMetrics(tenantId: string): Promise<TenantMetrics> {
+    const accounts = [...this.accounts.values()].filter((account) => account.tenantId === tenantId);
+    const transactions = [...this.transactions.values()].filter((tx) => tx.tenantId === tenantId);
+    const lots = [...this.lots.values()].filter((lot) => lot.tenantId === tenantId);
+    const auditLogs = this.auditLogs.filter((log) => log.tenantId === tenantId).length;
+
+    const txByType: Record<TxType, number> = {
+      EARN: 0,
+      SPEND: 0,
+      ADJUST: 0,
+      EXPIRE: 0,
+      REVERSAL: 0
+    };
+    for (const tx of transactions) {
+      txByType[tx.txType] += 1;
+    }
+
+    return {
+      tenantId,
+      generatedAt: nowIso(),
+      accounts: {
+        total: accounts.length,
+        user: accounts.filter((account) => account.ownerType === 'USER').length,
+        system: accounts.filter((account) => account.ownerType === 'SYSTEM').length,
+        active: accounts.filter((account) => account.status === 'ACTIVE').length,
+        suspended: accounts.filter((account) => account.status === 'SUSPENDED').length
+      },
+      transactions: {
+        total: transactions.length,
+        posted: transactions.filter((tx) => tx.status === 'POSTED').length,
+        reversed: transactions.filter((tx) => tx.status === 'REVERSED').length,
+        byType: txByType
+      },
+      lots: {
+        total: lots.length,
+        active: lots.filter((lot) => lot.status === 'ACTIVE').length,
+        consumed: lots.filter((lot) => lot.status === 'CONSUMED').length,
+        expired: lots.filter((lot) => lot.status === 'EXPIRED').length,
+        cancelled: lots.filter((lot) => lot.status === 'CANCELLED').length,
+        remainingTotal: lots.reduce((acc, lot) => acc + lot.remainingAmount, 0)
+      },
+      auditLogs
+    };
   }
 
   async reverseTransaction(tenantId: string, txId: string, actorUserId?: string | null): Promise<TransactionDetail> {

@@ -112,6 +112,7 @@ export interface QueryTransactions {
   externalRef?: string;
   postedFrom?: string;
   postedTo?: string;
+  order?: 'asc' | 'desc';
 }
 
 export interface TransactionDetail {
@@ -134,10 +135,38 @@ export interface LedgerPersistentState extends LedgerSnapshot {
   schemaVersion: 1;
 }
 
+export interface TenantMetrics {
+  tenantId: string;
+  generatedAt: string;
+  accounts: {
+    total: number;
+    user: number;
+    system: number;
+    active: number;
+    suspended: number;
+  };
+  transactions: {
+    total: number;
+    posted: number;
+    reversed: number;
+    byType: Record<TxType, number>;
+  };
+  lots: {
+    total: number;
+    active: number;
+    consumed: number;
+    expired: number;
+    cancelled: number;
+    remainingTotal: number;
+  };
+  auditLogs: number;
+}
+
 export interface QueryAuditLogs {
   tenantId: string;
   action?: string;
   targetType?: string;
+  targetId?: string;
   actorUserId?: string;
   from?: string;
   to?: string;

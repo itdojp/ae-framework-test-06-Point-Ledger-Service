@@ -18,6 +18,14 @@ function readRole(headers: Record<string, unknown>): { role: Role; userId: strin
   return { role: roleRaw, userId };
 }
 
+function parseBoundedInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.trunc(value)));
+}
+
 export function buildApp(service = new LedgerService()) {
   const app = Fastify({ logger: false });
 
@@ -134,6 +142,9 @@ export function buildApp(service = new LedgerService()) {
       externalRef?: string;
       postedFrom?: string;
       postedTo?: string;
+      page?: string;
+      pageSize?: string;
+      order?: string;
     };
     const auth = readRole(request.headers);
 
@@ -145,17 +156,23 @@ export function buildApp(service = new LedgerService()) {
       await ensureOwnAccount(query.tenantId, query.accountId, auth.role, auth.userId);
     }
 
+    const page = parseBoundedInt(query.page, 1, 1, Number.MAX_SAFE_INTEGER);
+    const pageSize = parseBoundedInt(query.pageSize, 50, 1, 200);
+    const order = query.order === 'asc' ? 'asc' : 'desc';
+
     const txs = await service.queryTransactions({
       tenantId: query.tenantId,
       accountId: query.accountId,
       txType: query.txType,
       externalRef: query.externalRef,
       postedFrom: query.postedFrom,
-      postedTo: query.postedTo
+      postedTo: query.postedTo,
+      order
     });
 
     if (auth.role === 'ADMIN') {
-      return txs;
+      const offset = (page - 1) * pageSize;
+      return txs.slice(offset, offset + pageSize);
     }
 
     const ownAccounts = await service.listAccounts(query.tenantId, {
@@ -170,7 +187,8 @@ export function buildApp(service = new LedgerService()) {
         filtered.push(tx);
       }
     }
-    return filtered;
+    const offset = (page - 1) * pageSize;
+    return filtered.slice(offset, offset + pageSize);
   });
 
   app.get('/api/v1/audit-logs', async (request) => {
@@ -178,6 +196,7 @@ export function buildApp(service = new LedgerService()) {
       tenantId?: string;
       action?: string;
       targetType?: string;
+      targetId?: string;
       actorUserId?: string;
       from?: string;
       to?: string;
@@ -192,14 +211,15 @@ export function buildApp(service = new LedgerService()) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    const page = Math.max(1, Number(query.page ?? '1'));
-    const pageSize = Math.min(200, Math.max(1, Number(query.pageSize ?? '50')));
+    const page = parseBoundedInt(query.page, 1, 1, Number.MAX_SAFE_INTEGER);
+    const pageSize = parseBoundedInt(query.pageSize, 50, 1, 200);
     const order = query.order === 'asc' ? 'asc' : 'desc';
 
     const base = {
       tenantId: query.tenantId,
       action: query.action,
       targetType: query.targetType,
+      targetId: query.targetId,
       actorUserId: query.actorUserId,
       from: query.from,
       to: query.to
@@ -219,6 +239,18 @@ export function buildApp(service = new LedgerService()) {
       total,
       items
     };
+  });
+
+  app.get('/api/v1/metrics', async (request) => {
+    const query = request.query as { tenantId?: string };
+    const auth = readRole(request.headers);
+    if (auth.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can access metrics');
+    }
+    if (!query.tenantId) {
+      throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
+    }
+    return service.getTenantMetrics(query.tenantId);
   });
 
   app.post('/api/v1/transactions/:txId/reverse', async (request) => {
