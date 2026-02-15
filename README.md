@@ -68,6 +68,11 @@ node scripts/acceptance/generate-lgacc-summary.mjs \
 - 読取系レート制御（任意）
   - 対象: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
   - `LEDGER_READ_RATE_LIMIT_WINDOW_MS` と `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS` を正の整数で同時指定すると有効
+  - role別上限を上書きする場合:
+    - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN`
+    - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_MEMBER`
+    - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_VIEWER`
+  - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - 超過時は `429` (`RATE_LIMIT_EXCEEDED`) を返却
 
 ## 中間生成物の保存方針

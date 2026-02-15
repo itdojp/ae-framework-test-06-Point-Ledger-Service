@@ -448,6 +448,9 @@ describe('HTTP API', () => {
       headers: { 'x-role': 'ADMIN' }
     });
     expect(first.statusCode).toBe(200);
+    expect(first.headers['x-ratelimit-limit']).toBe('1');
+    expect(first.headers['x-ratelimit-remaining']).toBe('0');
+    expect(first.headers['x-ratelimit-reset']).toBeDefined();
 
     const second = await app.inject({
       method: 'GET',
@@ -456,6 +459,75 @@ describe('HTTP API', () => {
     });
     expect(second.statusCode).toBe(429);
     expect(second.json().code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(second.headers['retry-after']).toBeDefined();
+    expect(second.headers['x-ratelimit-limit']).toBe('1');
+    expect(second.headers['x-ratelimit-remaining']).toBe('0');
+
+    await app.close();
+  });
+
+  it('role別レート上限を適用できる', async () => {
+    const app = buildApp(undefined, {
+      readRateLimit: {
+        windowMs: 60_000,
+        maxRequests: 1,
+        maxRequestsByRole: {
+          ADMIN: 2
+        }
+      }
+    });
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-role', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-role', ownerType: 'USER', ownerId: 'u-rate-role' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earnRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rate-role',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 30, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -30 }
+        ]
+      }
+    });
+    expect(earnRes.statusCode).toBe(200);
+
+    const admin1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-role',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(admin1.statusCode).toBe(200);
+    expect(admin1.headers['x-ratelimit-limit']).toBe('2');
+    expect(admin1.headers['x-ratelimit-remaining']).toBe('1');
+
+    const admin2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-role',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(admin2.statusCode).toBe(200);
+    expect(admin2.headers['x-ratelimit-limit']).toBe('2');
+    expect(admin2.headers['x-ratelimit-remaining']).toBe('0');
+
+    const admin3 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-role',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(admin3.statusCode).toBe(429);
+    expect(admin3.json().code).toBe('RATE_LIMIT_EXCEEDED');
 
     await app.close();
   });

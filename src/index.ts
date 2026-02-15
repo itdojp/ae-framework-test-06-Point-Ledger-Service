@@ -10,6 +10,9 @@ const stateFilePath = process.env['LEDGER_STATE_FILE'];
 const stateBackend = process.env['LEDGER_STATE_BACKEND'] ?? (stateFilePath ? 'file' : 'none');
 const readRateLimitWindowMs = Number(process.env['LEDGER_READ_RATE_LIMIT_WINDOW_MS'] ?? 0);
 const readRateLimitMaxRequests = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS'] ?? 0);
+const readRateLimitMaxRequestsAdmin = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN'] ?? 0);
+const readRateLimitMaxRequestsMember = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_MEMBER'] ?? 0);
+const readRateLimitMaxRequestsViewer = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_VIEWER'] ?? 0);
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -46,7 +49,12 @@ const app = buildApp(service, {
     isPositiveInt(readRateLimitWindowMs) && isPositiveInt(readRateLimitMaxRequests)
       ? {
           windowMs: readRateLimitWindowMs,
-          maxRequests: readRateLimitMaxRequests
+          maxRequests: readRateLimitMaxRequests,
+          maxRequestsByRole: {
+            ...(isPositiveInt(readRateLimitMaxRequestsAdmin) ? { ADMIN: readRateLimitMaxRequestsAdmin } : {}),
+            ...(isPositiveInt(readRateLimitMaxRequestsMember) ? { MEMBER: readRateLimitMaxRequestsMember } : {}),
+            ...(isPositiveInt(readRateLimitMaxRequestsViewer) ? { VIEWER: readRateLimitMaxRequestsViewer } : {})
+          }
         }
       : undefined
 });

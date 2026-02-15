@@ -9,6 +9,7 @@ type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
 export interface ReadRateLimitOptions {
   windowMs: number;
   maxRequests: number;
+  maxRequestsByRole?: Partial<Record<Role, number>>;
 }
 
 export interface AppOptions {
@@ -18,6 +19,9 @@ export interface AppOptions {
 interface RateLimitDecision {
   allowed: boolean;
   retryAfterSeconds: number;
+  remaining: number;
+  limit: number;
+  resetAtEpochSeconds: number;
 }
 
 interface RateLimitBucket {
@@ -45,27 +49,39 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
   return Math.min(max, Math.max(min, Math.trunc(value)));
 }
 
-function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: string) => RateLimitDecision) | null {
+function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: string, role: Role) => RateLimitDecision) | null {
   if (!options || options.windowMs <= 0 || options.maxRequests <= 0) {
     return null;
   }
   const buckets = new Map<string, RateLimitBucket>();
 
-  return (bucketId: string): RateLimitDecision => {
+  return (bucketId: string, role: Role): RateLimitDecision => {
+    const roleLimit = options.maxRequestsByRole?.[role];
+    const limit = Number.isInteger(roleLimit) && roleLimit && roleLimit > 0 ? roleLimit : options.maxRequests;
     const now = Date.now();
     const existing = buckets.get(bucketId);
     if (!existing || now >= existing.resetAt) {
+      const resetAt = now + options.windowMs;
       buckets.set(bucketId, {
         count: 1,
-        resetAt: now + options.windowMs
+        resetAt
       });
-      return { allowed: true, retryAfterSeconds: 0 };
+      return {
+        allowed: true,
+        retryAfterSeconds: 0,
+        remaining: Math.max(0, limit - 1),
+        limit,
+        resetAtEpochSeconds: Math.ceil(resetAt / 1000)
+      };
     }
 
-    if (existing.count >= options.maxRequests) {
+    if (existing.count >= limit) {
       return {
         allowed: false,
-        retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000))
+        retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+        remaining: 0,
+        limit,
+        resetAtEpochSeconds: Math.ceil(existing.resetAt / 1000)
       };
     }
 
@@ -79,7 +95,13 @@ function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: stri
       }
     }
 
-    return { allowed: true, retryAfterSeconds: 0 };
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(0, limit - existing.count),
+      limit,
+      resetAtEpochSeconds: Math.ceil(existing.resetAt / 1000)
+    };
   };
 }
 
@@ -87,13 +109,23 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
   const app = Fastify({ logger: false });
   const readRateLimiter = createReadRateLimiter(options?.readRateLimit);
 
-  function enforceReadRateLimit(scope: string, auth: { role: Role; userId: string | null }, tenantId: string, ip: string): void {
+  function enforceReadRateLimit(
+    scope: string,
+    auth: { role: Role; userId: string | null },
+    tenantId: string,
+    ip: string,
+    reply: { header: (name: string, value: string | number) => unknown }
+  ): void {
     if (!readRateLimiter) {
       return;
     }
     const actor = auth.userId ? `${auth.role}:${auth.userId}` : `${auth.role}:${ip}`;
-    const decision = readRateLimiter(`${scope}:${tenantId}:${actor}`);
+    const decision = readRateLimiter(`${scope}:${tenantId}:${actor}`, auth.role);
+    reply.header('X-RateLimit-Limit', String(decision.limit));
+    reply.header('X-RateLimit-Remaining', String(decision.remaining));
+    reply.header('X-RateLimit-Reset', String(decision.resetAtEpochSeconds));
     if (!decision.allowed) {
+      reply.header('Retry-After', String(decision.retryAfterSeconds));
       throw new DomainError(
         'RATE_LIMIT_EXCEEDED',
         `Too many read requests for ${scope}. retryAfterSeconds=${decision.retryAfterSeconds}`,
@@ -207,7 +239,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     return detail;
   });
 
-  app.get('/api/v1/transactions', async (request) => {
+  app.get('/api/v1/transactions', async (request, reply) => {
     const query = request.query as {
       tenantId?: string;
       accountId?: string;
@@ -224,7 +256,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('transactions', auth, query.tenantId, request.ip);
+    enforceReadRateLimit('transactions', auth, query.tenantId, request.ip, reply);
 
     if (auth.role !== 'ADMIN' && query.accountId) {
       await ensureOwnAccount(query.tenantId, query.accountId, auth.role, auth.userId);
@@ -265,7 +297,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     return filtered.slice(offset, offset + pageSize);
   });
 
-  app.get('/api/v1/audit-logs', async (request) => {
+  app.get('/api/v1/audit-logs', async (request, reply) => {
     const query = request.query as {
       tenantId?: string;
       action?: string;
@@ -285,7 +317,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('audit-logs', auth, query.tenantId, request.ip);
+    enforceReadRateLimit('audit-logs', auth, query.tenantId, request.ip, reply);
     const page = parseBoundedInt(query.page, 1, 1, Number.MAX_SAFE_INTEGER);
     const pageSize = parseBoundedInt(query.pageSize, 50, 1, 200);
     const order = query.order === 'asc' ? 'asc' : 'desc';
@@ -316,7 +348,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     };
   });
 
-  app.get('/api/v1/metrics', async (request) => {
+  app.get('/api/v1/metrics', async (request, reply) => {
     const query = request.query as { tenantId?: string };
     const auth = readRole(request.headers);
     if (auth.role !== 'ADMIN') {
@@ -325,7 +357,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('metrics', auth, query.tenantId, request.ip);
+    enforceReadRateLimit('metrics', auth, query.tenantId, request.ip, reply);
     return service.getTenantMetrics(query.tenantId);
   });
 

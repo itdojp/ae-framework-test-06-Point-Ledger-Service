@@ -26,6 +26,8 @@
 - 読取系レート制御追加（任意）
   - 対象: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
   - 設定: `LEDGER_READ_RATE_LIMIT_WINDOW_MS`, `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS`
+  - role別上限: `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN|MEMBER|VIEWER`
+  - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - 超過時: HTTP 429 (`RATE_LIMIT_EXCEEDED`)
 - 自動化強化
   - `scripts/ae/phase2-run.sh` を追加
@@ -35,16 +37,16 @@
 
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込テストを追加
-- API: 監査ログフィルタ、transactionsページング、metrics権限制御、読取レート制御テストを追加
+- API: 監査ログフィルタ、transactionsページング、metrics権限制御、読取レート制御（role別上限/ヘッダ）テストを追加
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (25 passed, 1 skipped)
+- `pnpm run test`: pass (26 passed, 1 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T213550Z/phase2-summary.json`
-  - `artifacts/runs/20260215T213550Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T213550Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T213823Z/phase2-summary.json`
+  - `artifacts/runs/20260215T213823Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T213823Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL 実行環境（Docker等）での接続E2E実行と結果保存
-- レート制御の運用チューニング（role別上限、レスポンスヘッダ整備）
+- レート制御の運用チューニング（path別上限、429監視メトリクス）
