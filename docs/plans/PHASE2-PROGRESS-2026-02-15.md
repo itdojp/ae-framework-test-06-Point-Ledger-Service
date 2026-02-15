@@ -11,6 +11,7 @@
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
+  - ページング・ソート対応（page/pageSize/order）
 - 自動化強化
   - `scripts/ae/phase2-run.sh` を追加
   - `scripts/acceptance/run-and-report.sh` を追加
@@ -25,11 +26,11 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (21 tests)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T140450Z/phase2-summary.json`
-  - `artifacts/runs/20260215T140450Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T140450Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T140713Z/phase2-summary.json`
+  - `artifacts/runs/20260215T140713Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T140713Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - 永続化フォーマットの後方互換ポリシー
 - PostgreSQL 実行環境での接続E2E検証
-- 監査ログAPIの検索条件拡張とページング
+- 監査ログAPIの検索条件拡張（action/targetType以外）と運用メトリクス追加

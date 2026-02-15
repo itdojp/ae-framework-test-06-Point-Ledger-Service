@@ -357,15 +357,31 @@ export class LedgerService {
   }
 
   async listAuditLogs(query: QueryAuditLogs): Promise<AuditLog[]> {
-    return this.auditLogs
+    const ordered = this.auditLogs
       .filter((log) => log.tenantId === query.tenantId)
       .filter((log) => !query.action || log.action === query.action)
       .filter((log) => !query.targetType || log.targetType === query.targetType)
       .filter((log) => !query.actorUserId || log.actorUserId === query.actorUserId)
       .filter((log) => !query.from || log.createdAt >= query.from)
       .filter((log) => !query.to || log.createdAt <= query.to)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .map((log) => ({ ...log }));
+      .sort((a, b) => {
+        const asc = a.createdAt.localeCompare(b.createdAt);
+        return query.order === 'desc' ? -asc : asc;
+      });
+
+    const offset = Math.max(0, query.offset ?? 0);
+    const limit = query.limit === undefined ? ordered.length : Math.max(0, query.limit);
+    return ordered.slice(offset, offset + limit).map((log) => ({ ...log }));
+  }
+
+  async countAuditLogs(query: Omit<QueryAuditLogs, 'offset' | 'limit' | 'order'>): Promise<number> {
+    return this.auditLogs
+      .filter((log) => log.tenantId === query.tenantId)
+      .filter((log) => !query.action || log.action === query.action)
+      .filter((log) => !query.targetType || log.targetType === query.targetType)
+      .filter((log) => !query.actorUserId || log.actorUserId === query.actorUserId)
+      .filter((log) => !query.from || log.createdAt >= query.from)
+      .filter((log) => !query.to || log.createdAt <= query.to).length;
   }
 
   async reverseTransaction(tenantId: string, txId: string, actorUserId?: string | null): Promise<TransactionDetail> {

@@ -198,11 +198,15 @@ describe('HTTP API', () => {
 
     const adminLogs = await app.inject({
       method: 'GET',
-      url: '/api/v1/audit-logs?tenantId=t-audit',
+      url: '/api/v1/audit-logs?tenantId=t-audit&page=1&pageSize=10&order=desc',
       headers: { 'x-role': 'ADMIN' }
     });
     expect(adminLogs.statusCode).toBe(200);
-    expect(adminLogs.json().length).toBeGreaterThan(0);
+    const logsPayload = adminLogs.json();
+    expect(logsPayload.total).toBeGreaterThan(0);
+    expect(logsPayload.items.length).toBeGreaterThan(0);
+    expect(logsPayload.page).toBe(1);
+    expect(logsPayload.pageSize).toBe(10);
 
     const memberLogs = await app.inject({
       method: 'GET',

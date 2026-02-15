@@ -181,6 +181,9 @@ export function buildApp(service = new LedgerService()) {
       actorUserId?: string;
       from?: string;
       to?: string;
+      page?: string;
+      pageSize?: string;
+      order?: string;
     };
     const auth = readRole(request.headers);
     if (auth.role !== 'ADMIN') {
@@ -189,14 +192,33 @@ export function buildApp(service = new LedgerService()) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    return service.listAuditLogs({
+    const page = Math.max(1, Number(query.page ?? '1'));
+    const pageSize = Math.min(200, Math.max(1, Number(query.pageSize ?? '50')));
+    const order = query.order === 'asc' ? 'asc' : 'desc';
+
+    const base = {
       tenantId: query.tenantId,
       action: query.action,
       targetType: query.targetType,
       actorUserId: query.actorUserId,
       from: query.from,
       to: query.to
+    } as const;
+
+    const total = await service.countAuditLogs(base);
+    const items = await service.listAuditLogs({
+      ...base,
+      order,
+      offset: (page - 1) * pageSize,
+      limit: pageSize
     });
+
+    return {
+      page,
+      pageSize,
+      total,
+      items
+    };
   });
 
   app.post('/api/v1/transactions/:txId/reverse', async (request) => {

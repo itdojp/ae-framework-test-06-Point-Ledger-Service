@@ -141,4 +141,7 @@ export interface QueryAuditLogs {
   actorUserId?: string;
   from?: string;
   to?: string;
+  order?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
 }
