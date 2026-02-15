@@ -5,11 +5,13 @@ import { LedgerService } from '../services/ledger-service.js';
 import { createAccountSchema, expireSchema, postTransactionSchema, reverseSchema } from './schemas.js';
 
 type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
+type ReadRateLimitScope = 'transactions' | 'audit-logs' | 'metrics';
 
 export interface ReadRateLimitOptions {
   windowMs: number;
   maxRequests: number;
   maxRequestsByRole?: Partial<Record<Role, number>>;
+  maxRequestsByScope?: Partial<Record<ReadRateLimitScope, number>>;
 }
 
 export interface AppOptions {
@@ -27,6 +29,11 @@ interface RateLimitDecision {
 interface RateLimitBucket {
   count: number;
   resetAt: number;
+}
+
+interface RateLimitScopeCounter {
+  allowed: number;
+  blocked: number;
 }
 
 function readRole(headers: Record<string, unknown>): { role: Role; userId: string | null } {
@@ -49,15 +56,26 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
   return Math.min(max, Math.max(min, Math.trunc(value)));
 }
 
-function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: string, role: Role) => RateLimitDecision) | null {
+function isPositiveInteger(value: number | undefined): value is number {
+  return Number.isInteger(value) && value !== undefined && value > 0;
+}
+
+function createReadRateLimiter(
+  options?: ReadRateLimitOptions
+): ((scope: ReadRateLimitScope, bucketId: string, role: Role) => RateLimitDecision) | null {
   if (!options || options.windowMs <= 0 || options.maxRequests <= 0) {
     return null;
   }
   const buckets = new Map<string, RateLimitBucket>();
 
-  return (bucketId: string, role: Role): RateLimitDecision => {
+  return (scope: ReadRateLimitScope, bucketId: string, role: Role): RateLimitDecision => {
     const roleLimit = options.maxRequestsByRole?.[role];
-    const limit = Number.isInteger(roleLimit) && roleLimit && roleLimit > 0 ? roleLimit : options.maxRequests;
+    const scopeLimit = options.maxRequestsByScope?.[scope];
+    const limit = isPositiveInteger(roleLimit)
+      ? roleLimit
+      : isPositiveInteger(scopeLimit)
+        ? scopeLimit
+        : options.maxRequests;
     const now = Date.now();
     const existing = buckets.get(bucketId);
     if (!existing || now >= existing.resetAt) {
@@ -108,9 +126,14 @@ function createReadRateLimiter(options?: ReadRateLimitOptions): ((bucketId: stri
 export function buildApp(service = new LedgerService(), options?: AppOptions) {
   const app = Fastify({ logger: false });
   const readRateLimiter = createReadRateLimiter(options?.readRateLimit);
+  const readRateLimitCounters: Record<ReadRateLimitScope, RateLimitScopeCounter> = {
+    transactions: { allowed: 0, blocked: 0 },
+    'audit-logs': { allowed: 0, blocked: 0 },
+    metrics: { allowed: 0, blocked: 0 }
+  };
 
   function enforceReadRateLimit(
-    scope: string,
+    scope: ReadRateLimitScope,
     auth: { role: Role; userId: string | null },
     tenantId: string,
     ip: string,
@@ -120,11 +143,12 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
       return;
     }
     const actor = auth.userId ? `${auth.role}:${auth.userId}` : `${auth.role}:${ip}`;
-    const decision = readRateLimiter(`${scope}:${tenantId}:${actor}`, auth.role);
+    const decision = readRateLimiter(scope, `${scope}:${tenantId}:${actor}`, auth.role);
     reply.header('X-RateLimit-Limit', String(decision.limit));
     reply.header('X-RateLimit-Remaining', String(decision.remaining));
     reply.header('X-RateLimit-Reset', String(decision.resetAtEpochSeconds));
     if (!decision.allowed) {
+      readRateLimitCounters[scope].blocked += 1;
       reply.header('Retry-After', String(decision.retryAfterSeconds));
       throw new DomainError(
         'RATE_LIMIT_EXCEEDED',
@@ -132,6 +156,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
         429
       );
     }
+    readRateLimitCounters[scope].allowed += 1;
   }
 
   async function ensureOwnAccount(
@@ -358,7 +383,24 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
     enforceReadRateLimit('metrics', auth, query.tenantId, request.ip, reply);
-    return service.getTenantMetrics(query.tenantId);
+    const tenantMetrics = await service.getTenantMetrics(query.tenantId);
+    return {
+      ...tenantMetrics,
+      runtime: {
+        rateLimit: {
+          enabled: Boolean(readRateLimiter),
+          windowMs: options?.readRateLimit?.windowMs ?? 0,
+          defaultMaxRequests: options?.readRateLimit?.maxRequests ?? 0,
+          maxRequestsByRole: options?.readRateLimit?.maxRequestsByRole ?? {},
+          maxRequestsByScope: options?.readRateLimit?.maxRequestsByScope ?? {},
+          scopes: {
+            transactions: { ...readRateLimitCounters.transactions },
+            auditLogs: { ...readRateLimitCounters['audit-logs'] },
+            metrics: { ...readRateLimitCounters.metrics }
+          }
+        }
+      }
+    };
   });
 
   app.post('/api/v1/transactions/:txId/reverse', async (request) => {

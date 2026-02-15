@@ -13,6 +13,9 @@ const readRateLimitMaxRequests = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_
 const readRateLimitMaxRequestsAdmin = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN'] ?? 0);
 const readRateLimitMaxRequestsMember = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_MEMBER'] ?? 0);
 const readRateLimitMaxRequestsViewer = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_VIEWER'] ?? 0);
+const readRateLimitMaxRequestsTransactions = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_TRANSACTIONS'] ?? 0);
+const readRateLimitMaxRequestsAuditLogs = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_AUDIT_LOGS'] ?? 0);
+const readRateLimitMaxRequestsMetrics = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_METRICS'] ?? 0);
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -54,6 +57,13 @@ const app = buildApp(service, {
             ...(isPositiveInt(readRateLimitMaxRequestsAdmin) ? { ADMIN: readRateLimitMaxRequestsAdmin } : {}),
             ...(isPositiveInt(readRateLimitMaxRequestsMember) ? { MEMBER: readRateLimitMaxRequestsMember } : {}),
             ...(isPositiveInt(readRateLimitMaxRequestsViewer) ? { VIEWER: readRateLimitMaxRequestsViewer } : {})
+          },
+          maxRequestsByScope: {
+            ...(isPositiveInt(readRateLimitMaxRequestsTransactions)
+              ? { transactions: readRateLimitMaxRequestsTransactions }
+              : {}),
+            ...(isPositiveInt(readRateLimitMaxRequestsAuditLogs) ? { 'audit-logs': readRateLimitMaxRequestsAuditLogs } : {}),
+            ...(isPositiveInt(readRateLimitMaxRequestsMetrics) ? { metrics: readRateLimitMaxRequestsMetrics } : {})
           }
         }
       : undefined

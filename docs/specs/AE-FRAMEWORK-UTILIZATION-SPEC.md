@@ -59,6 +59,10 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 
 1.4 読取系レート制御（任意）
 - `LEDGER_READ_RATE_LIMIT_WINDOW_MS` + `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS`
+- scope別 override:
+  - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_TRANSACTIONS`
+  - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_AUDIT_LOGS`
+  - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_METRICS`
 - role別 override:
   - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN`
   - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_MEMBER`
@@ -66,6 +70,7 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - 対象API: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
 - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 - 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED` (`Retry-After` を付与)
+- 運用監視: `GET /api/v1/metrics` 応答に runtime rate limit counters（scope別 allowed/blocked）を含める
 
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`

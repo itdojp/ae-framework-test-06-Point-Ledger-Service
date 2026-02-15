@@ -531,4 +531,147 @@ describe('HTTP API', () => {
 
     await app.close();
   });
+
+  it('scope別レート上限を適用できる', async () => {
+    const app = buildApp(undefined, {
+      readRateLimit: {
+        windowMs: 60_000,
+        maxRequests: 5,
+        maxRequestsByScope: {
+          transactions: 1,
+          metrics: 2
+        }
+      }
+    });
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-scope', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-scope', ownerType: 'USER', ownerId: 'u-rate-scope' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earnRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rate-scope',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 30, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -30 }
+        ]
+      }
+    });
+    expect(earnRes.statusCode).toBe(200);
+
+    const tx1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-scope',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(tx1.statusCode).toBe(200);
+    expect(tx1.headers['x-ratelimit-limit']).toBe('1');
+
+    const tx2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-scope',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(tx2.statusCode).toBe(429);
+
+    const metrics1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-rate-scope',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(metrics1.statusCode).toBe(200);
+    expect(metrics1.headers['x-ratelimit-limit']).toBe('2');
+
+    const metrics2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-rate-scope',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(metrics2.statusCode).toBe(200);
+    expect(metrics2.headers['x-ratelimit-limit']).toBe('2');
+
+    const metrics3 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-rate-scope',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(metrics3.statusCode).toBe(429);
+
+    await app.close();
+  });
+
+  it('metricsにレート制御のruntimeカウンタを含める', async () => {
+    const app = buildApp(undefined, {
+      readRateLimit: {
+        windowMs: 60_000,
+        maxRequests: 1,
+        maxRequestsByScope: {
+          metrics: 5
+        }
+      }
+    });
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-runtime', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rate-runtime', ownerType: 'USER', ownerId: 'u-rate-runtime' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rate-runtime',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+
+    const tx1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-runtime',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(tx1.statusCode).toBe(200);
+
+    const tx2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-runtime',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(tx2.statusCode).toBe(429);
+
+    const metrics = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics?tenantId=t-rate-runtime',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(metrics.statusCode).toBe(200);
+    const payload = metrics.json();
+    expect(payload.runtime.rateLimit.enabled).toBe(true);
+    expect(payload.runtime.rateLimit.scopes.transactions.allowed).toBeGreaterThanOrEqual(1);
+    expect(payload.runtime.rateLimit.scopes.transactions.blocked).toBeGreaterThanOrEqual(1);
+
+    await app.close();
+  });
 });
