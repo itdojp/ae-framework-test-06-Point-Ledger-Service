@@ -18,8 +18,8 @@ import {
 } from '../domain/types.js';
 import { AsyncMutex } from './async-mutex.js';
 import { ConflictError, DomainError, NotFoundError } from '../domain/errors.js';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { StateStore } from '../persistence/state-store.js';
+import { FileStateStore } from '../persistence/file-state-store.js';
 
 function nowIso(now?: Date): string {
   return (now ?? new Date()).toISOString();
@@ -48,15 +48,9 @@ function sum(entries: { amount: number }[]): number {
   return entries.reduce((acc, entry) => acc + entry.amount, 0);
 }
 
-async function writeFileAtomic(filePath: string, value: string): Promise<void> {
-  const tempPath = `${filePath}.tmp`;
-  await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(tempPath, value, 'utf-8');
-  await rename(tempPath, filePath);
-}
-
 export interface LedgerServiceOptions {
   stateFilePath?: string;
+  stateStore?: StateStore;
 }
 
 export class LedgerService {
@@ -70,10 +64,12 @@ export class LedgerService {
   private readonly auditLogs: AuditLog[] = [];
   private readonly idempotencyToTxId = new Map<string, string>();
   private readonly reversalBySourceTxId = new Map<string, string>();
+  private readonly stateStore: StateStore | null;
   private readonly stateFilePath: string | null;
 
   constructor(options?: LedgerServiceOptions) {
     this.stateFilePath = options?.stateFilePath ?? null;
+    this.stateStore = options?.stateStore ?? (this.stateFilePath ? new FileStateStore(this.stateFilePath) : null);
   }
 
   async createAccount(input: CreateAccountInput): Promise<Account> {
@@ -605,8 +601,8 @@ export class LedgerService {
     if (!filePath) {
       throw new DomainError('STATE_FILE_NOT_CONFIGURED', 'state file path is not configured', 500);
     }
-    const payload = JSON.stringify(this.exportState(), null, 2);
-    await writeFileAtomic(filePath, payload);
+    const fileStore = new FileStateStore(filePath);
+    await fileStore.save(this.exportState());
   }
 
   async loadStateFromFile(filePath = this.stateFilePath): Promise<boolean> {
@@ -614,17 +610,35 @@ export class LedgerService {
       return false;
     }
     return this.mutex.runExclusive(async () => {
-      try {
-        const raw = await readFile(filePath, 'utf-8');
-        const parsed = JSON.parse(raw) as LedgerPersistentState;
-        this.importState(parsed);
-        return true;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          return false;
-        }
-        throw error;
+      const fileStore = new FileStateStore(filePath);
+      const state = await fileStore.load();
+      if (!state) {
+        return false;
       }
+      this.importState(state);
+      return true;
+    });
+  }
+
+  async saveState(): Promise<void> {
+    if (!this.stateStore) {
+      throw new DomainError('STATE_STORE_NOT_CONFIGURED', 'state store is not configured', 500);
+    }
+    await this.stateStore.save(this.exportState());
+  }
+
+  async loadState(): Promise<boolean> {
+    const stateStore = this.stateStore;
+    if (!stateStore) {
+      return false;
+    }
+    return this.mutex.runExclusive(async () => {
+      const state = await stateStore.load();
+      if (!state) {
+        return false;
+      }
+      this.importState(state);
+      return true;
     });
   }
 
@@ -684,10 +698,10 @@ export class LedgerService {
   }
 
   private async persistIfConfigured(): Promise<void> {
-    if (!this.stateFilePath) {
+    if (!this.stateStore) {
       return;
     }
-    await this.saveStateToFile(this.stateFilePath);
+    await this.saveState();
   }
 
   private async postInternal(input: {

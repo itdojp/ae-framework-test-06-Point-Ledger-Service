@@ -49,8 +49,13 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 
 1.2 実装検証＋受入レポート付き自動化（Phase 2）
 - スクリプト: `scripts/ae/phase2-run.sh`
-- 実施内容: `typecheck` → `test` → `build` → `test:acceptance:report` → `evaluation-run` → `traceability` → `user-stories`
-- 出力: `artifacts/runs/<ts>/phase2-summary.json`, `acceptance-vitest.json`
+- 実施内容: `typecheck` → `test` → `build` → `test:acceptance:report` → `generate-lgacc-summary` → `evaluation-run` → `traceability` → `user-stories`
+- 出力: `artifacts/runs/<ts>/phase2-summary.json`, `acceptance-vitest.json`, `acceptance-lgacc-summary.json`
+
+1.3 永続化バックエンド切替
+- File: `LEDGER_STATE_BACKEND=file` + `LEDGER_STATE_FILE=<path>`
+- PostgreSQL: `LEDGER_STATE_BACKEND=postgres` + `LEDGER_DATABASE_URL` + `LEDGER_STATE_KEY`
+- 実装: `src/persistence/file-state-store.ts`, `src/persistence/postgres-state-store.ts`
 
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`

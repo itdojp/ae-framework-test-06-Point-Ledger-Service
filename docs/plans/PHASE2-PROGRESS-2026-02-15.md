@@ -2,8 +2,11 @@
 
 ## 実施内容
 - 永続化対応
-  - `LedgerService` に JSON 状態保存/復元を追加
-  - `LEDGER_STATE_FILE` 指定時に起動時ロード、更新時オートセーブ
+  - `LedgerService` に `StateStore` 抽象を導入
+  - `LEDGER_STATE_BACKEND=file|postgres` でストア切替
+  - `src/persistence/file-state-store.ts`
+  - `src/persistence/postgres-state-store.ts`
+  - `LEDGER_STATE_FILE` または `LEDGER_DATABASE_URL` 指定で起動時ロード、更新時オートセーブ
   - 復元時に idempotency/reversal インデックスを再構成
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
@@ -11,7 +14,8 @@
 - 自動化強化
   - `scripts/ae/phase2-run.sh` を追加
   - `scripts/acceptance/run-and-report.sh` を追加
-  - 受入テスト JSON レポートを artifacts に保存可能
+  - `scripts/acceptance/generate-lgacc-summary.mjs` を追加
+  - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
 
 ## テスト
 - 単体: 永続化ラウンドトリップテストを追加
@@ -21,10 +25,11 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (21 tests)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T133100Z/phase2-summary.json`
-  - `artifacts/runs/20260215T133100Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T140450Z/phase2-summary.json`
+  - `artifacts/runs/20260215T140450Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T140450Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - 永続化フォーマットの後方互換ポリシー
-- DBバックエンド（PostgreSQL等）への差し替え準備
+- PostgreSQL 実行環境での接続E2E検証
 - 監査ログAPIの検索条件拡張とページング

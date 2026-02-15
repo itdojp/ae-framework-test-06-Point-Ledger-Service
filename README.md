@@ -32,6 +32,21 @@ AE_FRAMEWORK_DIR=../ae-framework ./scripts/ae/phase2-run.sh
 LEDGER_STATE_FILE=./artifacts/state/ledger-state.json pnpm run start
 ```
 
+PostgreSQL 永続化で起動する場合:
+```bash
+LEDGER_STATE_BACKEND=postgres \
+LEDGER_DATABASE_URL=postgres://user:pass@localhost:5432/point_ledger \
+LEDGER_STATE_KEY=point-ledger-service \
+pnpm run start
+```
+
+受入基準サマリを生成する場合:
+```bash
+node scripts/acceptance/generate-lgacc-summary.mjs \
+  artifacts/runs/<RUN_TS>/acceptance-vitest.json \
+  artifacts/runs/<RUN_TS>/acceptance-lgacc-summary.json
+```
+
 ## 中間生成物の保存方針
 - `artifacts/`、`.ae/`、`.kiro/` を Git 管理対象にする。
 - ae-framework 実行で得られた生成物は、評価証跡としてコミット対象にする。

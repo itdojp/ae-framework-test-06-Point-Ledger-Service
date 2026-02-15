@@ -1,16 +1,47 @@
 import { buildApp } from './http/app.js';
 import { LedgerService } from './services/ledger-service.js';
+import { FileStateStore } from './persistence/file-state-store.js';
+import { PostgresStateStore } from './persistence/postgres-state-store.js';
+import { StateStore } from './persistence/state-store.js';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const host = process.env['HOST'] ?? '0.0.0.0';
 const stateFilePath = process.env['LEDGER_STATE_FILE'];
+const stateBackend = process.env['LEDGER_STATE_BACKEND'] ?? (stateFilePath ? 'file' : 'none');
 
-const service = new LedgerService({ stateFilePath });
-if (stateFilePath) {
-  await service.loadStateFromFile(stateFilePath);
+async function createStateStore(): Promise<StateStore | null> {
+  if (stateBackend === 'none') {
+    return null;
+  }
+
+  if (stateBackend === 'postgres') {
+    const connectionString = process.env['LEDGER_DATABASE_URL'];
+    const stateKey = process.env['LEDGER_STATE_KEY'] ?? 'point-ledger-service';
+    if (!connectionString) {
+      throw new Error('LEDGER_DATABASE_URL is required when LEDGER_STATE_BACKEND=postgres');
+    }
+    const store = new PostgresStateStore({ connectionString, stateKey });
+    await store.init();
+    return store;
+  }
+
+  if (!stateFilePath) {
+    throw new Error('LEDGER_STATE_FILE is required when LEDGER_STATE_BACKEND=file');
+  }
+  return new FileStateStore(stateFilePath);
 }
 
+const stateStore = await createStateStore();
+const service = new LedgerService({ stateFilePath, stateStore: stateStore ?? undefined });
+await service.loadState();
+
 const app = buildApp(service);
+app.addHook('onClose', async () => {
+  if (stateStore?.close) {
+    await stateStore.close();
+  }
+});
+
 app.listen({ port, host }).catch((error) => {
   // eslint-disable-next-line no-console
   console.error(error);

@@ -18,6 +18,7 @@
     "test:api": "vitest run tests/api",
     "test:acceptance": "vitest run tests/acceptance",
     "test:acceptance:report": "scripts/acceptance/run-and-report.sh",
+    "test:acceptance:summary": "node scripts/acceptance/generate-lgacc-summary.mjs",
     "test:property": "vitest run tests/property",
     "test:mbt": "vitest run tests/mbt",
     "verify:dev": "pnpm run typecheck && pnpm run test",
@@ -25,11 +26,13 @@
   },
   "dependencies": {
     "fastify": "^5.6.1",
+    "pg": "^8.12.0",
     "uuid": "^11.1.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.17.2",
+    "@types/pg": "^8.11.10",
     "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",

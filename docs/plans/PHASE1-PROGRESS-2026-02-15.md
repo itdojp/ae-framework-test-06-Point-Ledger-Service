@@ -46,6 +46,8 @@
   - `phase2-summary.json`
 - `artifacts/runs/20260215T133100Z/`
   - `phase2-summary.json`
+- `artifacts/runs/20260215T140450Z/`
+  - `phase2-summary.json`
 
 ## 残課題（Phase 2 以降）
 - DB バックエンド導入（現在は JSON 永続化）

@@ -1,0 +1,33 @@
+
+> ae-framework@1.0.0 ae-framework /home/devuser/work/CodeX/ae-framework_exp06/ae-framework
+> tsx src/cli/index.ts validate --traceability --sources /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/spec,/home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/src,/home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/tests
+
+🔍 Running Validation...
+✅ Traceability Validation Complete - 80% traceability coverage
+
+📊 Analysis:
+# Traceability Validation Report
+
+**Traceability Coverage**: 80%
+**Total Trace Links**: 50
+**Broken Links**: 0
+
+## Traceability Matrix
+• Requirements → User Stories (85% coverage)
+
+## Missing Trace Links
+
+
+## Orphaned Artifacts
+
+💡 Recommendations:
+• Establish missing trace links
+• Fix broken traceability relationships
+• Address orphaned artifacts
+• Maintain traceability during changes
+
+⏭️ Next Actions:
+• Create traceability matrix
+• Establish missing links
+• Validate existing trace relationships
+• Set up automated traceability checking
