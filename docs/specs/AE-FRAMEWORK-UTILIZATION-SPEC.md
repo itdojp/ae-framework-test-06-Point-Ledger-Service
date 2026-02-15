@@ -70,6 +70,10 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - actorキー戦略:
   - `LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY`
   - 値: `ip` | `role_ip` | `user` | `role_user`
+- バックエンド:
+  - `LEDGER_READ_RATE_LIMIT_BACKEND`
+  - 値: `memory` | `postgres`
+  - `postgres` 指定時は `LEDGER_DATABASE_URL` 必須
 - 対象API: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
 - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 - 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED` (`Retry-After` を付与)

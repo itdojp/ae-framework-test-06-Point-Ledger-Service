@@ -84,6 +84,9 @@ node scripts/acceptance/generate-lgacc-summary.mjs \
     - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_VIEWER`
   - actorキー戦略:
     - `LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY` (`ip` | `role_ip` | `user` | `role_user`)
+  - バックエンド:
+    - `LEDGER_READ_RATE_LIMIT_BACKEND` (`memory` | `postgres`)
+    - `postgres` 指定時は `LEDGER_DATABASE_URL` 必須（複数プロセス共有レート制御）
   - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - 超過時は `429` (`RATE_LIMIT_EXCEEDED`) を返却
   - `GET /api/v1/metrics` には runtime レート制御カウンタ（allowed/blocked）を含む

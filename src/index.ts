@@ -3,6 +3,8 @@ import { LedgerService } from './services/ledger-service.js';
 import { FileStateStore } from './persistence/file-state-store.js';
 import { PostgresStateStore } from './persistence/postgres-state-store.js';
 import { StateStore } from './persistence/state-store.js';
+import { InMemoryReadRateLimitBackend, ReadRateLimitBackend } from './http/read-rate-limit-backend.js';
+import { PostgresReadRateLimitBackend } from './http/postgres-read-rate-limit-backend.js';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const host = process.env['HOST'] ?? '0.0.0.0';
@@ -17,6 +19,7 @@ const readRateLimitMaxRequestsTransactions = Number(process.env['LEDGER_READ_RAT
 const readRateLimitMaxRequestsAuditLogs = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_AUDIT_LOGS'] ?? 0);
 const readRateLimitMaxRequestsMetrics = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_METRICS'] ?? 0);
 const readRateLimitActorKeyStrategyRaw = process.env['LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY'] ?? '';
+const readRateLimitBackendRaw = process.env['LEDGER_READ_RATE_LIMIT_BACKEND'] ?? 'memory';
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -29,6 +32,15 @@ function parseActorKeyStrategy(raw: string): 'ip' | 'role_ip' | 'user' | 'role_u
   return undefined;
 }
 const readRateLimitActorKeyStrategy = parseActorKeyStrategy(readRateLimitActorKeyStrategyRaw);
+
+function parseReadRateLimitBackend(raw: string): 'memory' | 'postgres' {
+  if (raw === 'postgres') {
+    return 'postgres';
+  }
+  return 'memory';
+}
+
+const readRateLimitBackendType = parseReadRateLimitBackend(readRateLimitBackendRaw);
 
 async function createStateStore(): Promise<StateStore | null> {
   if (stateBackend === 'none') {
@@ -56,31 +68,48 @@ const stateStore = await createStateStore();
 const service = new LedgerService({ stateFilePath, stateStore: stateStore ?? undefined });
 await service.loadState();
 
+const isReadRateLimitEnabled = isPositiveInt(readRateLimitWindowMs) && isPositiveInt(readRateLimitMaxRequests);
+let readRateLimitBackend: ReadRateLimitBackend | undefined;
+if (isReadRateLimitEnabled) {
+  if (readRateLimitBackendType === 'postgres') {
+    const connectionString = process.env['LEDGER_DATABASE_URL'];
+    if (!connectionString) {
+      throw new Error('LEDGER_DATABASE_URL is required when LEDGER_READ_RATE_LIMIT_BACKEND=postgres');
+    }
+    const backend = new PostgresReadRateLimitBackend({ connectionString });
+    await backend.init();
+    readRateLimitBackend = backend;
+  } else {
+    readRateLimitBackend = new InMemoryReadRateLimitBackend();
+  }
+}
+
 const app = buildApp(service, {
-  readRateLimit:
-    isPositiveInt(readRateLimitWindowMs) && isPositiveInt(readRateLimitMaxRequests)
-      ? {
-          windowMs: readRateLimitWindowMs,
-          maxRequests: readRateLimitMaxRequests,
-          maxRequestsByRole: {
-            ...(isPositiveInt(readRateLimitMaxRequestsAdmin) ? { ADMIN: readRateLimitMaxRequestsAdmin } : {}),
-            ...(isPositiveInt(readRateLimitMaxRequestsMember) ? { MEMBER: readRateLimitMaxRequestsMember } : {}),
-            ...(isPositiveInt(readRateLimitMaxRequestsViewer) ? { VIEWER: readRateLimitMaxRequestsViewer } : {})
-          },
-          maxRequestsByScope: {
-            ...(isPositiveInt(readRateLimitMaxRequestsTransactions)
-              ? { transactions: readRateLimitMaxRequestsTransactions }
-              : {}),
-            ...(isPositiveInt(readRateLimitMaxRequestsAuditLogs) ? { 'audit-logs': readRateLimitMaxRequestsAuditLogs } : {}),
-            ...(isPositiveInt(readRateLimitMaxRequestsMetrics) ? { metrics: readRateLimitMaxRequestsMetrics } : {})
-          },
-          ...(readRateLimitActorKeyStrategy ? { actorKeyStrategy: readRateLimitActorKeyStrategy } : {})
-        }
-      : undefined
+  readRateLimit: isReadRateLimitEnabled
+    ? {
+        windowMs: readRateLimitWindowMs,
+        maxRequests: readRateLimitMaxRequests,
+        maxRequestsByRole: {
+          ...(isPositiveInt(readRateLimitMaxRequestsAdmin) ? { ADMIN: readRateLimitMaxRequestsAdmin } : {}),
+          ...(isPositiveInt(readRateLimitMaxRequestsMember) ? { MEMBER: readRateLimitMaxRequestsMember } : {}),
+          ...(isPositiveInt(readRateLimitMaxRequestsViewer) ? { VIEWER: readRateLimitMaxRequestsViewer } : {})
+        },
+        maxRequestsByScope: {
+          ...(isPositiveInt(readRateLimitMaxRequestsTransactions) ? { transactions: readRateLimitMaxRequestsTransactions } : {}),
+          ...(isPositiveInt(readRateLimitMaxRequestsAuditLogs) ? { 'audit-logs': readRateLimitMaxRequestsAuditLogs } : {}),
+          ...(isPositiveInt(readRateLimitMaxRequestsMetrics) ? { metrics: readRateLimitMaxRequestsMetrics } : {})
+        },
+        ...(readRateLimitActorKeyStrategy ? { actorKeyStrategy: readRateLimitActorKeyStrategy } : {}),
+        ...(readRateLimitBackend ? { backend: readRateLimitBackend } : {})
+      }
+    : undefined
 });
 app.addHook('onClose', async () => {
   if (stateStore?.close) {
     await stateStore.close();
+  }
+  if (readRateLimitBackend?.close) {
+    await readRateLimitBackend.close();
   }
 });
 

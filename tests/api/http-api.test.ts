@@ -669,6 +669,7 @@ describe('HTTP API', () => {
     expect(metrics.statusCode).toBe(200);
     const payload = metrics.json();
     expect(payload.runtime.rateLimit.enabled).toBe(true);
+    expect(payload.runtime.rateLimit.backendKind).toBe('memory');
     expect(payload.runtime.rateLimit.actorKeyStrategy).toBe('role_user');
     expect(payload.runtime.rateLimit.scopes.transactions.allowed).toBeGreaterThanOrEqual(1);
     expect(payload.runtime.rateLimit.scopes.transactions.blocked).toBeGreaterThanOrEqual(1);

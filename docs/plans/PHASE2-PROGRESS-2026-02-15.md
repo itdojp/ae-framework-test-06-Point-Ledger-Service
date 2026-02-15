@@ -32,6 +32,8 @@
   - scope別上限: `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_TRANSACTIONS|AUDIT_LOGS|METRICS`
   - role別上限: `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN|MEMBER|VIEWER`
   - actorキー戦略: `LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY` (`ip|role_ip|user|role_user`)
+  - バックエンド: `LEDGER_READ_RATE_LIMIT_BACKEND` (`memory|postgres`)
+    - `postgres` 指定で複数プロセス共有制御
   - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - 超過時ヘッダ: `Retry-After`
   - `GET /api/v1/metrics` に runtime counters（scope別 allowed/blocked）を追加
@@ -50,10 +52,10 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (29 passed, 1 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T215420Z/phase2-summary.json`
-  - `artifacts/runs/20260215T215420Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T215420Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T233744Z/phase2-summary.json`
+  - `artifacts/runs/20260215T233744Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T233744Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（flake検知、再試行ポリシー）
-- レート制御の運用チューニング（分散環境での共有化、TTL戦略）
+- レート制御PostgreSQLバックエンドの運用チューニング（cleanup TTL、index最適化）

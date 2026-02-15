@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { ZodError } from 'zod';
 import { DomainError, ForbiddenError } from '../domain/errors.js';
 import { LedgerService } from '../services/ledger-service.js';
+import { InMemoryReadRateLimitBackend, ReadRateLimitBackend } from './read-rate-limit-backend.js';
 import { createAccountSchema, expireSchema, postTransactionSchema, reverseSchema } from './schemas.js';
 
 type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -14,6 +15,7 @@ export interface ReadRateLimitOptions {
   maxRequestsByRole?: Partial<Record<Role, number>>;
   maxRequestsByScope?: Partial<Record<ReadRateLimitScope, number>>;
   actorKeyStrategy?: ReadRateLimitActorKeyStrategy;
+  backend?: ReadRateLimitBackend;
 }
 
 export interface AppOptions {
@@ -26,11 +28,6 @@ interface RateLimitDecision {
   remaining: number;
   limit: number;
   resetAtEpochSeconds: number;
-}
-
-interface RateLimitBucket {
-  count: number;
-  resetAt: number;
 }
 
 interface RateLimitScopeCounter {
@@ -83,13 +80,13 @@ function isPositiveInteger(value: number | undefined): value is number {
 
 function createReadRateLimiter(
   options?: ReadRateLimitOptions
-): ((scope: ReadRateLimitScope, bucketId: string, role: Role) => RateLimitDecision) | null {
+): ((scope: ReadRateLimitScope, bucketId: string, role: Role) => Promise<RateLimitDecision>) | null {
   if (!options || options.windowMs <= 0 || options.maxRequests <= 0) {
     return null;
   }
-  const buckets = new Map<string, RateLimitBucket>();
+  const backend = options.backend ?? new InMemoryReadRateLimitBackend();
 
-  return (scope: ReadRateLimitScope, bucketId: string, role: Role): RateLimitDecision => {
+  return async (scope: ReadRateLimitScope, bucketId: string, role: Role): Promise<RateLimitDecision> => {
     const roleLimit = options.maxRequestsByRole?.[role];
     const scopeLimit = options.maxRequestsByScope?.[scope];
     const limit = isPositiveInteger(roleLimit)
@@ -98,48 +95,14 @@ function createReadRateLimiter(
         ? scopeLimit
         : options.maxRequests;
     const now = Date.now();
-    const existing = buckets.get(bucketId);
-    if (!existing || now >= existing.resetAt) {
-      const resetAt = now + options.windowMs;
-      buckets.set(bucketId, {
-        count: 1,
-        resetAt
-      });
-      return {
-        allowed: true,
-        retryAfterSeconds: 0,
-        remaining: Math.max(0, limit - 1),
-        limit,
-        resetAtEpochSeconds: Math.ceil(resetAt / 1000)
-      };
-    }
-
-    if (existing.count >= limit) {
-      return {
-        allowed: false,
-        retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
-        remaining: 0,
-        limit,
-        resetAtEpochSeconds: Math.ceil(existing.resetAt / 1000)
-      };
-    }
-
-    existing.count += 1;
-
-    if (buckets.size > 10000) {
-      for (const [key, bucket] of buckets.entries()) {
-        if (now >= bucket.resetAt) {
-          buckets.delete(key);
-        }
-      }
-    }
-
+    const result = await backend.consume(bucketId, limit, options.windowMs);
+    const retryAfterSeconds = result.allowed ? 0 : Math.max(1, Math.ceil((result.resetAtMs - now) / 1000));
     return {
-      allowed: true,
-      retryAfterSeconds: 0,
-      remaining: Math.max(0, limit - existing.count),
+      allowed: result.allowed,
+      retryAfterSeconds,
+      remaining: Math.max(0, limit - result.count),
       limit,
-      resetAtEpochSeconds: Math.ceil(existing.resetAt / 1000)
+      resetAtEpochSeconds: Math.ceil(result.resetAtMs / 1000)
     };
   };
 }
@@ -154,18 +117,18 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     metrics: { allowed: 0, blocked: 0 }
   };
 
-  function enforceReadRateLimit(
+  async function enforceReadRateLimit(
     scope: ReadRateLimitScope,
     auth: { role: Role; userId: string | null },
     tenantId: string,
     ip: string,
     reply: { header: (name: string, value: string | number) => unknown }
-  ): void {
+  ): Promise<void> {
     if (!readRateLimiter) {
       return;
     }
     const actor = resolveActorKey(auth, ip, actorKeyStrategy);
-    const decision = readRateLimiter(scope, `${scope}:${tenantId}:${actor}`, auth.role);
+    const decision = await readRateLimiter(scope, `${scope}:${tenantId}:${actor}`, auth.role);
     reply.header('X-RateLimit-Limit', String(decision.limit));
     reply.header('X-RateLimit-Remaining', String(decision.remaining));
     reply.header('X-RateLimit-Reset', String(decision.resetAtEpochSeconds));
@@ -303,7 +266,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('transactions', auth, query.tenantId, request.ip, reply);
+    await enforceReadRateLimit('transactions', auth, query.tenantId, request.ip, reply);
 
     if (auth.role !== 'ADMIN' && query.accountId) {
       await ensureOwnAccount(query.tenantId, query.accountId, auth.role, auth.userId);
@@ -364,7 +327,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('audit-logs', auth, query.tenantId, request.ip, reply);
+    await enforceReadRateLimit('audit-logs', auth, query.tenantId, request.ip, reply);
     const page = parseBoundedInt(query.page, 1, 1, Number.MAX_SAFE_INTEGER);
     const pageSize = parseBoundedInt(query.pageSize, 50, 1, 200);
     const order = query.order === 'asc' ? 'asc' : 'desc';
@@ -404,13 +367,14 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!query.tenantId) {
       throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
     }
-    enforceReadRateLimit('metrics', auth, query.tenantId, request.ip, reply);
+    await enforceReadRateLimit('metrics', auth, query.tenantId, request.ip, reply);
     const tenantMetrics = await service.getTenantMetrics(query.tenantId);
     return {
       ...tenantMetrics,
       runtime: {
         rateLimit: {
           enabled: Boolean(readRateLimiter),
+          backendKind: options?.readRateLimit?.backend?.kind ?? (readRateLimiter ? 'memory' : 'none'),
           windowMs: options?.readRateLimit?.windowMs ?? 0,
           defaultMaxRequests: options?.readRateLimit?.maxRequests ?? 0,
           maxRequestsByRole: options?.readRateLimit?.maxRequestsByRole ?? {},
