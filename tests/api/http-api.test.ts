@@ -167,4 +167,50 @@ describe('HTTP API', () => {
     expect(user2.ownerId).toBe('u2');
     await app.close();
   });
+
+  it('ADMINは監査ログ参照でき、MEMBERは参照不可', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit', ownerType: 'USER', ownerId: 'u-audit' }
+    });
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-audit',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 50, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -50 }
+        ]
+      }
+    });
+
+    const adminLogs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/audit-logs?tenantId=t-audit',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(adminLogs.statusCode).toBe(200);
+    expect(adminLogs.json().length).toBeGreaterThan(0);
+
+    const memberLogs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/audit-logs?tenantId=t-audit',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u-audit' }
+    });
+    expect(memberLogs.statusCode).toBe(403);
+
+    await app.close();
+  });
 });

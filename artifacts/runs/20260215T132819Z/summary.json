@@ -1,0 +1,16 @@
+{
+  "runTimestampUtc": "20260215T132819Z",
+  "aeFrameworkDir": "/home/devuser/work/CodeX/ae-framework_exp06/ae-framework",
+  "specFile": "spec/point-ledger-service.ae.md",
+  "commands": [
+    "ae spec validate",
+    "ae spec lint",
+    "ae spec export -f kiro"
+  ],
+  "outputs": [
+    ".ae/ae-ir.json",
+    ".ae/ae-ir.sha256",
+    ".kiro/specs"
+  ],
+  "status": "success"
+}

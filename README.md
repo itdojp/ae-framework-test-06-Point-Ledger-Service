@@ -22,6 +22,16 @@ Phase 1 実装と評価を一括で実行する場合:
 AE_FRAMEWORK_DIR=../ae-framework ./scripts/ae/phase1-run.sh
 ```
 
+Phase 2 実装（build/acceptance report含む）を一括実行する場合:
+```bash
+AE_FRAMEWORK_DIR=../ae-framework ./scripts/ae/phase2-run.sh
+```
+
+永続化を有効化してサーバ起動する場合:
+```bash
+LEDGER_STATE_FILE=./artifacts/state/ledger-state.json pnpm run start
+```
+
 ## 中間生成物の保存方針
 - `artifacts/`、`.ae/`、`.kiro/` を Git 管理対象にする。
 - ae-framework 実行で得られた生成物は、評価証跡としてコミット対象にする。

@@ -47,6 +47,11 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - 実施内容: `typecheck` → `test` → `evaluation-run` → `traceability` → `user-stories` の一括実行
 - 出力: `artifacts/runs/<ts>/phase1-summary.json`
 
+1.2 実装検証＋受入レポート付き自動化（Phase 2）
+- スクリプト: `scripts/ae/phase2-run.sh`
+- 実施内容: `typecheck` → `test` → `build` → `test:acceptance:report` → `evaluation-run` → `traceability` → `user-stories`
+- 出力: `artifacts/runs/<ts>/phase2-summary.json`, `acceptance-vitest.json`
+
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`
 - トリガー: `push`, `pull_request`, `schedule`, `workflow_dispatch`

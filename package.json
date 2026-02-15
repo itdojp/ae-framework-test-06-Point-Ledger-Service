@@ -17,9 +17,11 @@
     "test:unit": "vitest run tests/unit",
     "test:api": "vitest run tests/api",
     "test:acceptance": "vitest run tests/acceptance",
+    "test:acceptance:report": "scripts/acceptance/run-and-report.sh",
     "test:property": "vitest run tests/property",
     "test:mbt": "vitest run tests/mbt",
-    "verify:dev": "pnpm run typecheck && pnpm run test"
+    "verify:dev": "pnpm run typecheck && pnpm run test",
+    "ae:phase2": "scripts/ae/phase2-run.sh"
   },
   "dependencies": {
     "fastify": "^5.6.1",

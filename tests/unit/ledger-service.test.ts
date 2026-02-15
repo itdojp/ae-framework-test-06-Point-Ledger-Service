@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { LedgerService } from '../../src/services/ledger-service.js';
-import { ConflictError } from '../../src/domain/errors.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 async function setup(): Promise<{
   service: LedgerService;
@@ -258,5 +260,56 @@ describe('LedgerService', () => {
 
     const user = await service.getAccount(tenantId, userAccountId);
     expect(user.balance).toBe(20);
+  });
+
+  it('状態ファイルに自動保存し、再起動後に復元できる', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ledger-state-'));
+    const stateFilePath = join(dir, 'state.json');
+    try {
+      const service = new LedgerService({ stateFilePath });
+      const tenantId = 't-persist';
+      const system = await service.createAccount({ tenantId, ownerType: 'SYSTEM', ownerId: 'SYSTEM' });
+      const user = await service.createAccount({ tenantId, ownerType: 'USER', ownerId: 'u-persist' });
+
+      await service.postTransaction({
+        tenantId,
+        txType: 'EARN',
+        createdByUserId: 'admin',
+        idempotencyKey: 'persist-k1',
+        entries: [
+          { accountId: user.accountId, amount: 100, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -100 }
+        ]
+      });
+      await service.postTransaction({
+        tenantId,
+        txType: 'SPEND',
+        spend: { accountId: user.accountId, amount: 30 },
+        counterAccountId: system.accountId
+      });
+
+      const restored = new LedgerService({ stateFilePath });
+      const loaded = await restored.loadStateFromFile();
+      expect(loaded).toBe(true);
+
+      const account = await restored.getAccount(tenantId, user.accountId);
+      expect(account.balance).toBe(70);
+
+      const replay = await restored.postTransaction({
+        tenantId,
+        txType: 'EARN',
+        createdByUserId: 'admin',
+        idempotencyKey: 'persist-k1',
+        entries: [
+          { accountId: user.accountId, amount: 100, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -100 }
+        ]
+      });
+      const allTx = await restored.queryTransactions({ tenantId });
+      expect(replay.transaction.txType).toBe('EARN');
+      expect(allTx).toHaveLength(2);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

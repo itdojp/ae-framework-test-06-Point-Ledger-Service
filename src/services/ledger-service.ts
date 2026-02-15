@@ -5,17 +5,21 @@ import {
   CreateAccountInput,
   EntryInput,
   LedgerEntry,
+  LedgerPersistentState,
   LedgerSnapshot,
   LedgerTransaction,
   LotConsumption,
   PointLot,
   PostTransactionInput,
+  QueryAuditLogs,
   QueryTransactions,
   TransactionDetail,
   TxType
 } from '../domain/types.js';
 import { AsyncMutex } from './async-mutex.js';
 import { ConflictError, DomainError, NotFoundError } from '../domain/errors.js';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 function nowIso(now?: Date): string {
   return (now ?? new Date()).toISOString();
@@ -44,6 +48,17 @@ function sum(entries: { amount: number }[]): number {
   return entries.reduce((acc, entry) => acc + entry.amount, 0);
 }
 
+async function writeFileAtomic(filePath: string, value: string): Promise<void> {
+  const tempPath = `${filePath}.tmp`;
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(tempPath, value, 'utf-8');
+  await rename(tempPath, filePath);
+}
+
+export interface LedgerServiceOptions {
+  stateFilePath?: string;
+}
+
 export class LedgerService {
   private readonly mutex = new AsyncMutex();
   private readonly accounts = new Map<string, Account>();
@@ -55,6 +70,11 @@ export class LedgerService {
   private readonly auditLogs: AuditLog[] = [];
   private readonly idempotencyToTxId = new Map<string, string>();
   private readonly reversalBySourceTxId = new Map<string, string>();
+  private readonly stateFilePath: string | null;
+
+  constructor(options?: LedgerServiceOptions) {
+    this.stateFilePath = options?.stateFilePath ?? null;
+  }
 
   async createAccount(input: CreateAccountInput): Promise<Account> {
     return this.mutex.runExclusive(async () => {
@@ -84,6 +104,7 @@ export class LedgerService {
 
       this.accounts.set(account.accountId, account);
       this.balances.set(account.accountId, 0);
+      await this.persistIfConfigured();
       return { ...account };
     });
   }
@@ -311,6 +332,7 @@ export class LedgerService {
       });
 
       this.assertInvariantsForTenant(input.tenantId);
+      await this.persistIfConfigured();
       return this.getTransactionDetailInternal(input.tenantId, txId);
     });
   }
@@ -336,6 +358,18 @@ export class LedgerService {
       .sort((a, b) => a.postedAt.localeCompare(b.postedAt));
 
     return txs.map((tx) => ({ ...tx }));
+  }
+
+  async listAuditLogs(query: QueryAuditLogs): Promise<AuditLog[]> {
+    return this.auditLogs
+      .filter((log) => log.tenantId === query.tenantId)
+      .filter((log) => !query.action || log.action === query.action)
+      .filter((log) => !query.targetType || log.targetType === query.targetType)
+      .filter((log) => !query.actorUserId || log.actorUserId === query.actorUserId)
+      .filter((log) => !query.from || log.createdAt >= query.from)
+      .filter((log) => !query.to || log.createdAt <= query.to)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((log) => ({ ...log }));
   }
 
   async reverseTransaction(tenantId: string, txId: string, actorUserId?: string | null): Promise<TransactionDetail> {
@@ -464,6 +498,7 @@ export class LedgerService {
       });
 
       this.assertInvariantsForTenant(tenantId);
+      await this.persistIfConfigured();
       return this.getTransactionDetailInternal(tenantId, reversalTxId);
     });
   }
@@ -527,6 +562,7 @@ export class LedgerService {
       }
 
       this.assertInvariantsForTenant(tenantId);
+      await this.persistIfConfigured();
       return results;
     });
   }
@@ -555,6 +591,103 @@ export class LedgerService {
       .map((log) => ({ ...log }));
 
     return { accounts, balances, transactions: txs, entries, lots, consumptions, auditLogs };
+  }
+
+  exportState(): LedgerPersistentState {
+    const snapshot = this.snapshot();
+    return {
+      schemaVersion: 1,
+      ...snapshot
+    };
+  }
+
+  async saveStateToFile(filePath = this.stateFilePath): Promise<void> {
+    if (!filePath) {
+      throw new DomainError('STATE_FILE_NOT_CONFIGURED', 'state file path is not configured', 500);
+    }
+    const payload = JSON.stringify(this.exportState(), null, 2);
+    await writeFileAtomic(filePath, payload);
+  }
+
+  async loadStateFromFile(filePath = this.stateFilePath): Promise<boolean> {
+    if (!filePath) {
+      return false;
+    }
+    return this.mutex.runExclusive(async () => {
+      try {
+        const raw = await readFile(filePath, 'utf-8');
+        const parsed = JSON.parse(raw) as LedgerPersistentState;
+        this.importState(parsed);
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return false;
+        }
+        throw error;
+      }
+    });
+  }
+
+  importState(state: LedgerPersistentState): void {
+    if (state.schemaVersion !== 1) {
+      throw new DomainError('STATE_SCHEMA_UNSUPPORTED', `Unsupported schemaVersion: ${state.schemaVersion}`, 400);
+    }
+
+    this.accounts.clear();
+    this.balances.clear();
+    this.transactions.clear();
+    this.entriesByTxId.clear();
+    this.lots.clear();
+    this.consumptionsBySpendTx.clear();
+    this.auditLogs.splice(0, this.auditLogs.length);
+    this.idempotencyToTxId.clear();
+    this.reversalBySourceTxId.clear();
+
+    for (const account of state.accounts) {
+      this.accounts.set(account.accountId, { ...account });
+    }
+
+    for (const [accountId, balance] of Object.entries(state.balances)) {
+      this.balances.set(accountId, balance);
+    }
+
+    for (const tx of state.transactions) {
+      this.transactions.set(tx.txId, { ...tx });
+      if (tx.idempotencyKey) {
+        const actor = tx.createdByUserId ?? 'system';
+        this.idempotencyToTxId.set(`${tx.tenantId}:${actor}:${tx.idempotencyKey}`, tx.txId);
+      }
+      if (tx.reversalOfTxId) {
+        this.reversalBySourceTxId.set(tx.reversalOfTxId, tx.txId);
+      }
+    }
+
+    for (const entry of state.entries) {
+      const existing = this.entriesByTxId.get(entry.txId) ?? [];
+      existing.push({ ...entry });
+      this.entriesByTxId.set(entry.txId, existing);
+    }
+
+    for (const lot of state.lots) {
+      this.lots.set(lot.lotId, { ...lot });
+    }
+
+    for (const consumption of state.consumptions) {
+      const existing = this.consumptionsBySpendTx.get(consumption.spendTxId) ?? [];
+      existing.push({ ...consumption });
+      this.consumptionsBySpendTx.set(consumption.spendTxId, existing);
+    }
+
+    for (const log of state.auditLogs) {
+      this.auditLogs.push({ ...log });
+    }
+  }
+
+  private async persistIfConfigured(): Promise<void> {
+    if (!this.stateFilePath) {
+      return;
+    }
+    await this.saveStateToFile(this.stateFilePath);
   }
 
   private async postInternal(input: {

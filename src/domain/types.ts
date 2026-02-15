@@ -129,3 +129,16 @@ export interface LedgerSnapshot {
   consumptions: LotConsumption[];
   auditLogs: AuditLog[];
 }
+
+export interface LedgerPersistentState extends LedgerSnapshot {
+  schemaVersion: 1;
+}
+
+export interface QueryAuditLogs {
+  tenantId: string;
+  action?: string;
+  targetType?: string;
+  actorUserId?: string;
+  from?: string;
+  to?: string;
+}

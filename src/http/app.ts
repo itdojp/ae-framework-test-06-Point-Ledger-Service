@@ -111,6 +111,32 @@ export function buildApp(service = new LedgerService()) {
     });
   });
 
+  app.get('/api/v1/audit-logs', async (request) => {
+    const query = request.query as {
+      tenantId?: string;
+      action?: string;
+      targetType?: string;
+      actorUserId?: string;
+      from?: string;
+      to?: string;
+    };
+    const auth = readRole(request.headers);
+    if (auth.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can access audit logs');
+    }
+    if (!query.tenantId) {
+      throw new DomainError('INVALID_QUERY', 'tenantId is required', 400);
+    }
+    return service.listAuditLogs({
+      tenantId: query.tenantId,
+      action: query.action,
+      targetType: query.targetType,
+      actorUserId: query.actorUserId,
+      from: query.from,
+      to: query.to
+    });
+  });
+
   app.post('/api/v1/transactions/:txId/reverse', async (request) => {
     const params = request.params as { txId: string };
     const body = reverseSchema.parse(request.body);

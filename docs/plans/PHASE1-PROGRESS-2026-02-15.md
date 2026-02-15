@@ -23,7 +23,7 @@
 
 ## 検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (18 tests)
+- `pnpm run test`: pass (20 tests)
 - `scripts/ae/evaluation-run.sh`: pass
 - `ae validate --traceability`: pass
 - `ae user-stories --generate`: pass
@@ -42,9 +42,11 @@
   - `phase1-summary.json`
 - `artifacts/runs/20260215T130330Z/`
   - `phase1-summary.json`
+- `artifacts/runs/20260215T132819Z/`
+  - `phase2-summary.json`
 
 ## 残課題（Phase 2 以降）
-- 永続化層（DB）導入
-- RBAC 厳密化（VIEWER/MEMBER/ADMIN）
+- DB バックエンド導入（現在は JSON 永続化）
+- RBAC 厳密化（VIEWER/MEMBER/ADMIN の運用詳細）
 - 失効バッチ運用設計（スケジュール/再実行保証）
 - 受入基準 LG-ACC-01〜04 の自動判定レポート化
