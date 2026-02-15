@@ -33,7 +33,7 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - 用途: 実行時ルール適合性の検証
 - 出力: `artifacts/hermetic-reports/conformance/`
 
-7. `test:acceptance` / `test:property` / `test:mbt` / `pipelines:mutation:quick`（Phase 1〜3）
+7. `test:acceptance` / `test:property` / `test:mbt` / `test:e2e:postgres` / `pipelines:mutation:quick`（Phase 1〜3）
 - 用途: 不変条件・状態遷移・退行耐性の検証
 - 出力: `artifacts/properties/`, `artifacts/mbt/`, `reports/` 等
 

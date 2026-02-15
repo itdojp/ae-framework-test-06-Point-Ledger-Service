@@ -19,6 +19,7 @@
     "test:acceptance": "vitest run tests/acceptance",
     "test:acceptance:report": "scripts/acceptance/run-and-report.sh",
     "test:acceptance:summary": "node scripts/acceptance/generate-lgacc-summary.mjs",
+    "test:e2e:postgres": "vitest run tests/e2e/postgres-state-store.e2e.test.ts",
     "test:property": "vitest run tests/property",
     "test:mbt": "vitest run tests/mbt",
     "verify:dev": "pnpm run typecheck && pnpm run test",

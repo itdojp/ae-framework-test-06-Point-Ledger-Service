@@ -41,6 +41,13 @@ LEDGER_STATE_KEY=point-ledger-service \
 pnpm run start
 ```
 
+PostgreSQL 永続化のE2Eスモークテストを実行する場合:
+```bash
+LEDGER_DATABASE_URL=postgres://user:pass@localhost:5432/point_ledger \
+pnpm run test:e2e:postgres
+```
+`pnpm run test` では `LEDGER_DATABASE_URL` 未設定時に E2E ケースは skip される。
+
 受入基準サマリを生成する場合:
 ```bash
 node scripts/acceptance/generate-lgacc-summary.mjs \

@@ -10,6 +10,8 @@
   - 復元時に idempotency/reversal インデックスを再構成
   - schemaVersion なし旧スナップショットを互換読込（v1扱い）
   - 互換方針文書: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
+  - PostgreSQL E2E スモークテストを追加: `tests/e2e/postgres-state-store.e2e.test.ts`
+  - 実行コマンドを追加: `pnpm run test:e2e:postgres`
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -33,12 +35,12 @@
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (24 tests)
+- `pnpm run test`: pass (24 passed, 1 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T141606Z/phase2-summary.json`
-  - `artifacts/runs/20260215T141606Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T141606Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T141833Z/phase2-summary.json`
+  - `artifacts/runs/20260215T141833Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T141833Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
-- PostgreSQL 実行環境での接続E2E検証
+- PostgreSQL 実行環境（Docker等）での接続E2E実行と結果保存
 - 監査ログ/取引APIの運用上限設計（最大pageSize, レート制御）
