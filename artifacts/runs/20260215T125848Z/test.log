@@ -1,0 +1,17 @@
+
+> point-ledger-service@0.1.0 test /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service
+> vitest run
+
+
+ RUN  v2.1.9 /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service
+
+ ✓ tests/unit/ledger-service.test.ts (9 tests) 20ms
+ ✓ tests/mbt/ledger.mbt.test.ts (1 test) 17ms
+ ✓ tests/property/invariants.property.test.ts (1 test) 36ms
+ ✓ tests/api/http-api.test.ts (1 test) 85ms
+
+ Test Files  4 passed (4)
+      Tests  12 passed (12)
+   Start at  21:58:52
+   Duration  627ms (transform 250ms, setup 0ms, collect 655ms, tests 157ms, environment 1ms, prepare 489ms)
+

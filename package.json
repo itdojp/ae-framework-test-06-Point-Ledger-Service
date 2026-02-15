@@ -1,0 +1,35 @@
+{
+  "name": "point-ledger-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Point Ledger Service for ae-framework evaluation",
+  "engines": {
+    "node": ">=20.11 <23"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:api": "vitest run tests/api",
+    "test:property": "vitest run tests/property",
+    "test:mbt": "vitest run tests/mbt",
+    "verify:dev": "pnpm run typecheck && pnpm run test"
+  },
+  "dependencies": {
+    "fastify": "^5.6.1",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.2",
+    "fast-check": "^3.23.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.9"
+  }
+}

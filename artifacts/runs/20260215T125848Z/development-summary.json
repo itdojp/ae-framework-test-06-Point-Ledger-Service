@@ -1,0 +1,9 @@
+{
+  "runTimestampUtc": "20260215T125848Z",
+  "checks": [
+    "pnpm run typecheck",
+    "pnpm run test",
+    "scripts/ae/evaluation-run.sh"
+  ],
+  "status": "success"
+}

@@ -23,13 +23,17 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 
 4. `ae validate --traceability`（Phase 1以降）
 - 用途: 仕様・実装・テストの追跡可能性検証
-- 出力: `artifacts/runs/<ts>/traceability.*`
+- 出力: `artifacts/runs/<ts>/ae-traceability.log`
 
-5. `ae conformance verify/report`（Phase 2以降）
+5. `ae user-stories --generate`（Phase 1以降）
+- 用途: 仕様からユーザーストーリー候補を抽出し、要件抜けを検知する
+- 出力: `artifacts/runs/<ts>/ae-user-stories.log`
+
+6. `ae conformance verify/report`（Phase 2以降）
 - 用途: 実行時ルール適合性の検証
 - 出力: `artifacts/hermetic-reports/conformance/`
 
-6. `test:property` / `test:mbt` / `pipelines:mutation:quick`（Phase 3以降）
+7. `test:property` / `test:mbt` / `pipelines:mutation:quick`（Phase 3以降）
 - 用途: 不変条件・状態遷移・退行耐性の検証
 - 出力: `artifacts/properties/`, `artifacts/mbt/`, `reports/` 等
 
@@ -37,6 +41,11 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 1. ローカル自動化
 - スクリプト: `scripts/ae/evaluation-run.sh`
 - 実施内容: validate → lint → export → ハッシュ化 → 実行サマリ保存
+
+1.1 実装検証付きローカル自動化（Phase 1）
+- スクリプト: `scripts/ae/phase1-run.sh`
+- 実施内容: `typecheck` → `test` → `evaluation-run` → `traceability` → `user-stories` の一括実行
+- 出力: `artifacts/runs/<ts>/phase1-summary.json`
 
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`
@@ -60,4 +69,5 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 
 ## 6. 運用ルール
 - 仕様変更時は必ず `evaluation-run.sh` を実行し、生成差分を同一PRでコミットする。
+- 実装変更時は `phase1-run.sh` を実行し、`typecheck/test/ae-*` ログを保存する。
 - 失敗時は `artifacts/runs/<ts>/summary.json` を根拠に原因を記録する。

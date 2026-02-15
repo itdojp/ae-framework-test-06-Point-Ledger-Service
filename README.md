@@ -17,6 +17,11 @@
 AE_FRAMEWORK_DIR=../ae-framework ./scripts/ae/evaluation-run.sh
 ```
 
+Phase 1 実装と評価を一括で実行する場合:
+```bash
+AE_FRAMEWORK_DIR=../ae-framework ./scripts/ae/phase1-run.sh
+```
+
 ## 中間生成物の保存方針
 - `artifacts/`、`.ae/`、`.kiro/` を Git 管理対象にする。
 - ae-framework 実行で得られた生成物は、評価証跡としてコミット対象にする。
