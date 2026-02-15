@@ -20,6 +20,8 @@ const readRateLimitMaxRequestsAuditLogs = Number(process.env['LEDGER_READ_RATE_L
 const readRateLimitMaxRequestsMetrics = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_METRICS'] ?? 0);
 const readRateLimitActorKeyStrategyRaw = process.env['LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY'] ?? '';
 const readRateLimitBackendRaw = process.env['LEDGER_READ_RATE_LIMIT_BACKEND'] ?? 'memory';
+const readRateLimitCleanupIntervalMs = Number(process.env['LEDGER_READ_RATE_LIMIT_CLEANUP_INTERVAL_MS'] ?? 0);
+const readRateLimitCleanupRetentionMs = Number(process.env['LEDGER_READ_RATE_LIMIT_CLEANUP_RETENTION_MS'] ?? 0);
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -76,7 +78,11 @@ if (isReadRateLimitEnabled) {
     if (!connectionString) {
       throw new Error('LEDGER_DATABASE_URL is required when LEDGER_READ_RATE_LIMIT_BACKEND=postgres');
     }
-    const backend = new PostgresReadRateLimitBackend({ connectionString });
+    const backend = new PostgresReadRateLimitBackend({
+      connectionString,
+      cleanupIntervalMs: isPositiveInt(readRateLimitCleanupIntervalMs) ? readRateLimitCleanupIntervalMs : undefined,
+      cleanupRetentionMs: isPositiveInt(readRateLimitCleanupRetentionMs) ? readRateLimitCleanupRetentionMs : undefined
+    });
     await backend.init();
     readRateLimitBackend = backend;
   } else {

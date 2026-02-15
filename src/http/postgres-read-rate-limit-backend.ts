@@ -3,16 +3,27 @@ import { ReadRateLimitBackend, ReadRateLimitConsumeResult } from './read-rate-li
 
 export interface PostgresReadRateLimitBackendOptions {
   connectionString: string;
+  cleanupIntervalMs?: number;
+  cleanupRetentionMs?: number;
 }
 
 export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
   readonly kind = 'postgres' as const;
   private readonly pool: Pool;
   private lastCleanupAtMs = 0;
-  private readonly cleanupIntervalMs = 60_000;
+  private readonly cleanupIntervalMs: number;
+  private readonly cleanupRetentionMs: number;
 
   constructor(options: PostgresReadRateLimitBackendOptions) {
     this.pool = new Pool({ connectionString: options.connectionString });
+    this.cleanupIntervalMs =
+      options.cleanupIntervalMs && Number.isInteger(options.cleanupIntervalMs) && options.cleanupIntervalMs > 0
+        ? options.cleanupIntervalMs
+        : 60_000;
+    this.cleanupRetentionMs =
+      options.cleanupRetentionMs && Number.isInteger(options.cleanupRetentionMs) && options.cleanupRetentionMs > 0
+        ? options.cleanupRetentionMs
+        : 3_600_000;
   }
 
   async init(): Promise<void> {
@@ -138,9 +149,13 @@ export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
       return;
     }
     this.lastCleanupAtMs = nowMs;
-    await this.pool.query(`
+    const cutoffMs = nowMs - this.cleanupRetentionMs;
+    await this.pool.query(
+      `
       DELETE FROM ledger_read_rate_limits
-      WHERE reset_at < NOW() - INTERVAL '1 hour'
-    `);
+      WHERE reset_at < to_timestamp($1 / 1000.0)
+      `,
+      [cutoffMs]
+    );
   }
 }
