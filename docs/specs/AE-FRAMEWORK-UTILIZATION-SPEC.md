@@ -67,6 +67,9 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
   - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_ADMIN`
   - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_MEMBER`
   - `LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_VIEWER`
+- actorキー戦略:
+  - `LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY`
+  - 値: `ip` | `role_ip` | `user` | `role_user`
 - 対象API: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
 - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 - 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED` (`Retry-After` を付与)

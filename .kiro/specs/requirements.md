@@ -1,7 +1,7 @@
 ---
 specId: point_ledger_service
 version: 1.0.0
-generatedAt: 2026-02-15T21:49:51.584Z
+generatedAt: 2026-02-15T21:52:32.493Z
 ---
 
 # Requirements

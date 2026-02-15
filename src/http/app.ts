@@ -6,12 +6,14 @@ import { createAccountSchema, expireSchema, postTransactionSchema, reverseSchema
 
 type Role = 'ADMIN' | 'MEMBER' | 'VIEWER';
 type ReadRateLimitScope = 'transactions' | 'audit-logs' | 'metrics';
+type ReadRateLimitActorKeyStrategy = 'ip' | 'role_ip' | 'user' | 'role_user';
 
 export interface ReadRateLimitOptions {
   windowMs: number;
   maxRequests: number;
   maxRequestsByRole?: Partial<Record<Role, number>>;
   maxRequestsByScope?: Partial<Record<ReadRateLimitScope, number>>;
+  actorKeyStrategy?: ReadRateLimitActorKeyStrategy;
 }
 
 export interface AppOptions {
@@ -54,6 +56,25 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
     return fallback;
   }
   return Math.min(max, Math.max(min, Math.trunc(value)));
+}
+
+function resolveActorKey(
+  auth: { role: Role; userId: string | null },
+  ip: string,
+  strategy: ReadRateLimitActorKeyStrategy
+): string {
+  const userKey = auth.userId ?? ip;
+  switch (strategy) {
+    case 'ip':
+      return ip;
+    case 'role_ip':
+      return `${auth.role}:${ip}`;
+    case 'user':
+      return userKey;
+    case 'role_user':
+    default:
+      return `${auth.role}:${userKey}`;
+  }
 }
 
 function isPositiveInteger(value: number | undefined): value is number {
@@ -126,6 +147,7 @@ function createReadRateLimiter(
 export function buildApp(service = new LedgerService(), options?: AppOptions) {
   const app = Fastify({ logger: false });
   const readRateLimiter = createReadRateLimiter(options?.readRateLimit);
+  const actorKeyStrategy = options?.readRateLimit?.actorKeyStrategy ?? 'role_user';
   const readRateLimitCounters: Record<ReadRateLimitScope, RateLimitScopeCounter> = {
     transactions: { allowed: 0, blocked: 0 },
     'audit-logs': { allowed: 0, blocked: 0 },
@@ -142,7 +164,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
     if (!readRateLimiter) {
       return;
     }
-    const actor = auth.userId ? `${auth.role}:${auth.userId}` : `${auth.role}:${ip}`;
+    const actor = resolveActorKey(auth, ip, actorKeyStrategy);
     const decision = readRateLimiter(scope, `${scope}:${tenantId}:${actor}`, auth.role);
     reply.header('X-RateLimit-Limit', String(decision.limit));
     reply.header('X-RateLimit-Remaining', String(decision.remaining));
@@ -393,6 +415,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
           defaultMaxRequests: options?.readRateLimit?.maxRequests ?? 0,
           maxRequestsByRole: options?.readRateLimit?.maxRequestsByRole ?? {},
           maxRequestsByScope: options?.readRateLimit?.maxRequestsByScope ?? {},
+          actorKeyStrategy,
           scopes: {
             transactions: { ...readRateLimitCounters.transactions },
             auditLogs: { ...readRateLimitCounters['audit-logs'] },

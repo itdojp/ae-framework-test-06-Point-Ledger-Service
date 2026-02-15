@@ -669,8 +669,36 @@ describe('HTTP API', () => {
     expect(metrics.statusCode).toBe(200);
     const payload = metrics.json();
     expect(payload.runtime.rateLimit.enabled).toBe(true);
+    expect(payload.runtime.rateLimit.actorKeyStrategy).toBe('role_user');
     expect(payload.runtime.rateLimit.scopes.transactions.allowed).toBeGreaterThanOrEqual(1);
     expect(payload.runtime.rateLimit.scopes.transactions.blocked).toBeGreaterThanOrEqual(1);
+
+    await app.close();
+  });
+
+  it('actorKeyStrategy=ipでは別ユーザーでも同一IPなら上限を共有する', async () => {
+    const app = buildApp(undefined, {
+      readRateLimit: {
+        windowMs: 60_000,
+        maxRequests: 1,
+        actorKeyStrategy: 'ip'
+      }
+    });
+
+    const first = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-actor',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u1' }
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-rate-actor',
+      headers: { 'x-role': 'MEMBER', 'x-user-id': 'u2' }
+    });
+    expect(second.statusCode).toBe(429);
+    expect(second.json().code).toBe('RATE_LIMIT_EXCEEDED');
 
     await app.close();
   });

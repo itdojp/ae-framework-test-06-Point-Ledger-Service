@@ -16,10 +16,19 @@ const readRateLimitMaxRequestsViewer = Number(process.env['LEDGER_READ_RATE_LIMI
 const readRateLimitMaxRequestsTransactions = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_TRANSACTIONS'] ?? 0);
 const readRateLimitMaxRequestsAuditLogs = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_AUDIT_LOGS'] ?? 0);
 const readRateLimitMaxRequestsMetrics = Number(process.env['LEDGER_READ_RATE_LIMIT_MAX_REQUESTS_METRICS'] ?? 0);
+const readRateLimitActorKeyStrategyRaw = process.env['LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY'] ?? '';
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
 }
+
+function parseActorKeyStrategy(raw: string): 'ip' | 'role_ip' | 'user' | 'role_user' | undefined {
+  if (raw === 'ip' || raw === 'role_ip' || raw === 'user' || raw === 'role_user') {
+    return raw;
+  }
+  return undefined;
+}
+const readRateLimitActorKeyStrategy = parseActorKeyStrategy(readRateLimitActorKeyStrategyRaw);
 
 async function createStateStore(): Promise<StateStore | null> {
   if (stateBackend === 'none') {
@@ -64,7 +73,8 @@ const app = buildApp(service, {
               : {}),
             ...(isPositiveInt(readRateLimitMaxRequestsAuditLogs) ? { 'audit-logs': readRateLimitMaxRequestsAuditLogs } : {}),
             ...(isPositiveInt(readRateLimitMaxRequestsMetrics) ? { metrics: readRateLimitMaxRequestsMetrics } : {})
-          }
+          },
+          ...(readRateLimitActorKeyStrategy ? { actorKeyStrategy: readRateLimitActorKeyStrategy } : {})
         }
       : undefined
 });
