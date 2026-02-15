@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:api": "vitest run tests/api",
+    "test:acceptance": "vitest run tests/acceptance",
     "test:property": "vitest run tests/property",
     "test:mbt": "vitest run tests/mbt",
     "verify:dev": "pnpm run typecheck && pnpm run test"

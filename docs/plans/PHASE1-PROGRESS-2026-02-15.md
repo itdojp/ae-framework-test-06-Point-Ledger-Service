@@ -17,12 +17,13 @@
 - テスト実装
   - 単体テスト: `tests/unit/ledger-service.test.ts`
   - API テスト: `tests/api/http-api.test.ts`
+  - 受入テスト: `tests/acceptance/ledger.acceptance.test.ts`
   - Property テスト: `tests/property/invariants.property.test.ts`
   - MBT: `tests/mbt/ledger.mbt.test.ts`
 
 ## 検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (14 tests)
+- `pnpm run test`: pass (18 tests)
 - `scripts/ae/evaluation-run.sh`: pass
 - `ae validate --traceability`: pass
 - `ae user-stories --generate`: pass
@@ -38,6 +39,8 @@
   - `development-summary.json`
   - `ae-extended-eval.json`
 - `artifacts/runs/20260215T130204Z/`
+  - `phase1-summary.json`
+- `artifacts/runs/20260215T130330Z/`
   - `phase1-summary.json`
 
 ## 残課題（Phase 2 以降）

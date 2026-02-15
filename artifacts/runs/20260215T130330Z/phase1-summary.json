@@ -1,0 +1,15 @@
+{
+  "runTimestampUtc": "20260215T130330Z",
+  "checks": [
+    "pnpm run typecheck",
+    "pnpm run test",
+    "scripts/ae/evaluation-run.sh",
+    "ae validate --traceability",
+    "ae user-stories --generate"
+  ],
+  "aeExtended": {
+    "traceabilityExitCode": 0,
+    "userStoriesExitCode": 0
+  },
+  "status": "success"
+}
