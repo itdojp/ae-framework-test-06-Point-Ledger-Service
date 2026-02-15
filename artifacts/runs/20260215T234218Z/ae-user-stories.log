@@ -1,0 +1,39 @@
+
+> ae-framework@1.0.0 ae-framework /home/devuser/work/CodeX/ae-framework_exp06/ae-framework
+> tsx src/cli/index.ts user-stories --generate --sources /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/spec/point-ledger-service.ae.md
+
+📝 Processing User Stories...
+✅ User Story Generation Complete - 1 stories created across 1 epics
+
+📊 Analysis:
+# User Stories Generation Report
+
+**Total Stories**: 1
+**Total Epics**: 1
+**Total Story Points**: 5
+**Completeness Score**: 85%
+
+## Epic Breakdown
+• **User Management**: 1 stories (5 points)
+
+## Priority Distribution
+- **High Priority**: 1 stories
+- **Medium Priority**: 0 stories
+- **Low Priority**: 0 stories
+
+## Identified Gaps
+• Password reset functionality not specified
+
+💡 Recommendations:
+• Review generated stories for completeness
+• Validate acceptance criteria with stakeholders
+• Consider story dependencies for sprint planning
+• Estimate story points with development team
+
+⏭️ Next Actions:
+• Create detailed acceptance criteria for each story
+• Define test scenarios based on stories
+• Proceed to sprint planning and prioritization
+
+⚠️ Warnings:
+• Story gaps detected - may affect feature coverage

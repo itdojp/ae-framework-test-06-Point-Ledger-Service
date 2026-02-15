@@ -11,6 +11,7 @@
   - schemaVersion なし旧スナップショットを互換読込（v1扱い）
   - 互換方針文書: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
   - PostgreSQL E2E スモークテストを追加: `tests/e2e/postgres-state-store.e2e.test.ts`
+  - PostgreSQL共有レート制御 E2E を追加: `tests/e2e/postgres-rate-limit.e2e.test.ts`
   - 実行コマンドを追加: `pnpm run test:e2e:postgres`
   - CI自動化: `.github/workflows/postgres-e2e.yml` で PostgreSQL service container 実行
   - CI定期実行: `schedule` 追加（毎日）
@@ -48,14 +49,15 @@
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込テストを追加
 - API: 監査ログフィルタ、transactionsページング、metrics権限制御、読取レート制御（scope別/role別上限、actor戦略、ヘッダ、runtime counters）テストを追加
+- E2E(PostgreSQL): state-store と shared rate limiter を追加
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (29 passed, 1 skipped)
+- `pnpm run test`: pass (29 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T234006Z/phase2-summary.json`
-  - `artifacts/runs/20260215T234006Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T234006Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260215T234218Z/phase2-summary.json`
+  - `artifacts/runs/20260215T234218Z/acceptance-vitest.json`
+  - `artifacts/runs/20260215T234218Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（flake検知、再試行ポリシー）

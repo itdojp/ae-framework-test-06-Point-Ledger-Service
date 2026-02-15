@@ -52,6 +52,9 @@ PostgreSQL 永続化のE2Eスモークテストを実行する場合:
 LEDGER_DATABASE_URL=postgres://user:pass@localhost:5432/point_ledger \
 pnpm run test:e2e:postgres
 ```
+対象:
+- 状態永続化復元（StateStore）
+- 共有レート制御（Read Rate Limiter backend）
 `pnpm run test` では `LEDGER_DATABASE_URL` 未設定時に E2E ケースは skip される。
 
 受入基準サマリを生成する場合:

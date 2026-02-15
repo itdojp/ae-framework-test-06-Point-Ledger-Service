@@ -91,6 +91,7 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - ワークフロー: `.github/workflows/postgres-e2e.yml`
 - トリガー: `push`, `pull_request`, `schedule`, `workflow_dispatch`
 - 実施内容: PostgreSQL service container 上で `test:e2e:postgres` を実行
+  - 対象: `postgres-state-store.e2e`, `postgres-rate-limit.e2e`
 - flake対策: `vitest --retry=2`
 - 出力: `artifacts/runs/<ts>/postgres-e2e-vitest.json`, `postgres-e2e.log`, `postgres-e2e-summary.json`
 
