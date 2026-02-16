@@ -100,6 +100,7 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - トレンド集計: `scripts/ci/postgres-e2e-trend-report.mjs`（GitHub API）
 - 信頼性ゲート: `scripts/ci/postgres-e2e-trend-gate.mjs`
   - 閾値: `minCompletedRuns=5`, `minSuccessRate=0.95`, `maxRerunRate=0.20`
+  - 判定母集団: 直近完了run（`recentCompletedLimit=10`）を優先し、必要時のみ window 集計へフォールバック
   - `schedule` 実行時は gate fail で job を fail
 - 出力: `artifacts/runs/<ts>/postgres-e2e-vitest.json`, `postgres-e2e.log`, `postgres-e2e-summary.json`, `postgres-e2e-trend.json`, `postgres-e2e-gate.json`
 

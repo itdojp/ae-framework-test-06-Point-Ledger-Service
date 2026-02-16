@@ -18,6 +18,7 @@
   - flake対策: `test:e2e:postgres --retry=2`
   - 履歴集計: `scripts/ci/postgres-e2e-trend-report.mjs` による `postgres-e2e-trend.json` 生成
   - 信頼性ゲート: `scripts/ci/postgres-e2e-trend-gate.mjs` による閾値判定
+    - 直近完了 run 10件ベースの判定モードを追加（初期失敗データの影響を緩和）
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -58,10 +59,9 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (51 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260216T065658Z/phase2-summary.json`
-  - `artifacts/runs/20260216T065658Z/acceptance-vitest.json`
-  - `artifacts/runs/20260216T065658Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T070426Z/phase2-summary.json`
+  - `artifacts/runs/20260216T070426Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T070426Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
-- PostgreSQL E2E の定期実行結果レビュー（trend gate 閾値の実データ調整）
 - レート制御PostgreSQLバックエンドの運用チューニング（cleanup TTL、index最適化）

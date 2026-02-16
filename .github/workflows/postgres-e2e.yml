@@ -98,6 +98,7 @@ jobs:
           POSTGRES_E2E_WORKFLOW_FILE: postgres-e2e.yml
           POSTGRES_E2E_TREND_WINDOW_DAYS: "14"
           POSTGRES_E2E_TREND_MAX_PAGES: "5"
+          POSTGRES_E2E_TREND_RECENT_COMPLETED_LIMIT: "10"
         run: node scripts/ci/postgres-e2e-trend-report.mjs "$RUN_DIR/postgres-e2e-trend.json"
 
       - name: Evaluate PostgreSQL E2E trend gate
@@ -105,6 +106,8 @@ jobs:
           POSTGRES_E2E_GATE_MIN_COMPLETED_RUNS: "5"
           POSTGRES_E2E_GATE_MIN_SUCCESS_RATE: "0.95"
           POSTGRES_E2E_GATE_MAX_RERUN_RATE: "0.20"
+          POSTGRES_E2E_GATE_USE_RECENT_COMPLETED: "true"
+          POSTGRES_E2E_GATE_RECENT_COMPLETED_LIMIT: "10"
           POSTGRES_E2E_GATE_ENFORCE: ${{ github.event_name == 'schedule' }}
         run: node scripts/ci/postgres-e2e-trend-gate.mjs "$RUN_DIR/postgres-e2e-trend.json" "$RUN_DIR/postgres-e2e-gate.json"
 

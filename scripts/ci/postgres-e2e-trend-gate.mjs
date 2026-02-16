@@ -18,6 +18,20 @@ function parseRatio(value, fallback) {
   return n;
 }
 
+function parseBoolean(value, fallback) {
+  if (value === undefined) {
+    return fallback;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+  if (normalized === 'false') {
+    return false;
+  }
+  return fallback;
+}
+
 async function main() {
   const trendPath = process.argv[2];
   const outputPath = process.argv[3];
@@ -28,7 +42,9 @@ async function main() {
   const minCompletedRuns = parsePositiveInt(process.env.POSTGRES_E2E_GATE_MIN_COMPLETED_RUNS, 5);
   const minSuccessRate = parseRatio(process.env.POSTGRES_E2E_GATE_MIN_SUCCESS_RATE, 0.95);
   const maxRerunRate = parseRatio(process.env.POSTGRES_E2E_GATE_MAX_RERUN_RATE, 0.2);
-  const enforce = String(process.env.POSTGRES_E2E_GATE_ENFORCE ?? '').toLowerCase() === 'true';
+  const enforce = parseBoolean(process.env.POSTGRES_E2E_GATE_ENFORCE, false);
+  const useRecentCompleted = parseBoolean(process.env.POSTGRES_E2E_GATE_USE_RECENT_COMPLETED, false);
+  const recentCompletedLimit = parsePositiveInt(process.env.POSTGRES_E2E_GATE_RECENT_COMPLETED_LIMIT, 10);
 
   const trend = JSON.parse(await readFile(trendPath, 'utf-8'));
   const report = {
@@ -37,7 +53,9 @@ async function main() {
     thresholds: {
       minCompletedRuns,
       minSuccessRate,
-      maxRerunRate
+      maxRerunRate,
+      useRecentCompleted,
+      recentCompletedLimit
     },
     enforce,
     status: 'skipped',
@@ -49,11 +67,27 @@ async function main() {
     report.status = 'skipped';
     report.failures.push(`trend report is not usable: status=${trend.status}`);
   } else {
-    const completedRuns = Number(trend.completedRuns ?? 0);
-    const successRate = trend.successRate === null ? null : Number(trend.successRate);
-    const rerunRate = completedRuns === 0 ? null : Number((Number(trend.rerunCount ?? 0) / completedRuns).toFixed(4));
+    let completedRuns = Number(trend.completedRuns ?? 0);
+    let successRate = trend.successRate === null ? null : Number(trend.successRate);
+    let rerunRate = completedRuns === 0 ? null : Number((Number(trend.rerunCount ?? 0) / completedRuns).toFixed(4));
+    let mode = 'window';
+
+    if (useRecentCompleted) {
+      const recentCompletedRuns = Array.isArray(trend.recentCompletedRuns)
+        ? trend.recentCompletedRuns.slice(0, recentCompletedLimit)
+        : [];
+      if (recentCompletedRuns.length > 0) {
+        mode = `recent:${recentCompletedLimit}`;
+        completedRuns = recentCompletedRuns.length;
+        const recentSuccessCount = recentCompletedRuns.filter((run) => run.conclusion === 'success').length;
+        const recentRerunCount = recentCompletedRuns.filter((run) => Number(run.attempt ?? 1) > 1).length;
+        successRate = Number((recentSuccessCount / completedRuns).toFixed(4));
+        rerunRate = Number((recentRerunCount / completedRuns).toFixed(4));
+      }
+    }
 
     report.checks = {
+      mode,
       completedRuns,
       successRate,
       rerunRate

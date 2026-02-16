@@ -46,12 +46,17 @@ async function fetchRuns({ repository, workflowFile, token, perPage, maxPages })
   return runs;
 }
 
-function aggregateRuns(runs, cutoffMs) {
+function aggregateRuns(runs, cutoffMs, recentCompletedLimit) {
   const inWindow = runs.filter((run) => {
     const created = Date.parse(String(run.created_at ?? ''));
     return Number.isFinite(created) && created >= cutoffMs;
   });
   const completed = inWindow.filter((run) => run.status === 'completed');
+  const completedSorted = [...completed].sort((a, b) => {
+    const aCreated = Date.parse(String(a.created_at ?? ''));
+    const bCreated = Date.parse(String(b.created_at ?? ''));
+    return (Number.isFinite(bCreated) ? bCreated : 0) - (Number.isFinite(aCreated) ? aCreated : 0);
+  });
   const countsByConclusion = {};
   const countsByEvent = {};
 
@@ -65,8 +70,13 @@ function aggregateRuns(runs, cutoffMs) {
   const successCount = countsByConclusion.success ?? 0;
   const totalCompleted = completed.length;
   const successRate = totalCompleted === 0 ? null : Number((successCount / totalCompleted).toFixed(4));
+  const recentCompleted = completedSorted.slice(0, recentCompletedLimit);
+  const recentCompletedSuccessCount = recentCompleted.filter((run) => run.conclusion === 'success').length;
+  const recentCompletedSuccessRate =
+    recentCompleted.length === 0 ? null : Number((recentCompletedSuccessCount / recentCompleted.length).toFixed(4));
+  const recentCompletedRerunCount = recentCompleted.filter((run) => Number(run.run_attempt ?? 1) > 1).length;
 
-  const recentFailures = completed
+  const recentFailures = completedSorted
     .filter((run) => run.conclusion !== 'success')
     .slice(0, 10)
     .map((run) => ({
@@ -90,6 +100,19 @@ function aggregateRuns(runs, cutoffMs) {
     countsByEvent,
     successRate,
     rerunCount,
+    recentCompletedLimit,
+    recentCompletedRuns: recentCompleted.map((run) => ({
+      id: run.id,
+      runNumber: run.run_number,
+      attempt: run.run_attempt,
+      event: run.event,
+      conclusion: run.conclusion,
+      createdAt: run.created_at,
+      updatedAt: run.updated_at,
+      url: run.html_url
+    })),
+    recentCompletedSuccessRate,
+    recentCompletedRerunCount,
     recentFailures
   };
 }
@@ -106,6 +129,7 @@ async function main() {
   const windowDays = parsePositiveInt(process.env.POSTGRES_E2E_TREND_WINDOW_DAYS, 14);
   const perPage = parsePositiveInt(process.env.POSTGRES_E2E_TREND_PER_PAGE, 100);
   const maxPages = parsePositiveInt(process.env.POSTGRES_E2E_TREND_MAX_PAGES, 5);
+  const recentCompletedLimit = parsePositiveInt(process.env.POSTGRES_E2E_TREND_RECENT_COMPLETED_LIMIT, 10);
   const generatedAt = new Date();
   const generatedAtUtc = generatedAt.toISOString();
   const cutoffMs = generatedAt.getTime() - windowDays * 24 * 60 * 60 * 1000;
@@ -128,7 +152,7 @@ async function main() {
       windowDays,
       windowStartUtc: new Date(cutoffMs).toISOString(),
       status: 'ok',
-      ...aggregateRuns(runs, cutoffMs)
+      ...aggregateRuns(runs, cutoffMs, recentCompletedLimit)
     };
   }
 
