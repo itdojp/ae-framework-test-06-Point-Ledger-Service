@@ -519,6 +519,147 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('失効バッチはADMINのみ実行可能で、同一lotを二重失効しない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-expire-idem', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-expire-idem', ownerType: 'USER', ownerId: 'u-expire-idem' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-expire-idem',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 30, expiresAt: '2026-01-01T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -30 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+
+    const memberExpire = await app.inject({
+      method: 'POST',
+      url: '/api/v1/batch/expire',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u-expire-idem'
+      },
+      payload: {
+        tenantId: 't-expire-idem',
+        now: '2026-02-01T00:00:00.000Z'
+      }
+    });
+    expect(memberExpire.statusCode).toBe(403);
+
+    const firstExpire = await app.inject({
+      method: 'POST',
+      url: '/api/v1/batch/expire',
+      payload: {
+        tenantId: 't-expire-idem',
+        now: '2026-02-01T00:00:00.000Z'
+      }
+    });
+    expect(firstExpire.statusCode).toBe(200);
+    expect(firstExpire.json()).toHaveLength(1);
+
+    const secondExpire = await app.inject({
+      method: 'POST',
+      url: '/api/v1/batch/expire',
+      payload: {
+        tenantId: 't-expire-idem',
+        now: '2026-02-01T00:00:00.000Z'
+      }
+    });
+    expect(secondExpire.statusCode).toBe(200);
+    expect(secondExpire.json()).toHaveLength(0);
+
+    const lots = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}/lots?tenantId=t-expire-idem`
+    });
+    expect(lots.statusCode).toBe(200);
+    expect(lots.json()[0].status).toBe('EXPIRED');
+    expect(lots.json()[0].remainingAmount).toBe(0);
+
+    const expiredTxs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-expire-idem&txType=EXPIRE'
+    });
+    expect(expiredTxs.statusCode).toBe(200);
+    expect(expiredTxs.json()).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it('EXPIRE transactionはreverseできない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-expire-reverse', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-expire-reverse', ownerType: 'USER', ownerId: 'u-expire-reverse' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-expire-reverse',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 9, expiresAt: '2026-01-01T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -9 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+
+    const expire = await app.inject({
+      method: 'POST',
+      url: '/api/v1/batch/expire',
+      payload: {
+        tenantId: 't-expire-reverse',
+        now: '2026-02-01T00:00:00.000Z'
+      }
+    });
+    expect(expire.statusCode).toBe(200);
+    expect(expire.json()).toHaveLength(1);
+    const expireTxId = expire.json()[0].transaction.txId as string;
+
+    const reverseExpire = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${expireTxId}/reverse`,
+      payload: {
+        tenantId: 't-expire-reverse'
+      }
+    });
+    expect(reverseExpire.statusCode).toBe(409);
+    expect(reverseExpire.json().code).toBe('REVERSAL_NOT_ALLOWED');
+
+    await app.close();
+  });
+
   it('ADMINは監査ログ参照でき、MEMBERは参照不可', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
