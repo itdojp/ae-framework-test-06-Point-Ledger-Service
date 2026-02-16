@@ -206,6 +206,36 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('tenant不一致の口座アクセスは404になる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-auth-404-a', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-auth-404-a', ownerType: 'USER', ownerId: 'u-auth-404' }
+    });
+    expect(userRes.statusCode).toBe(200);
+    const user = userRes.json();
+
+    const mismatch = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}?tenantId=t-auth-404-b`,
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u-auth-404'
+      }
+    });
+    expect(mismatch.statusCode).toBe(404);
+
+    await app.close();
+  });
+
   it('ADMINは監査ログ参照でき、MEMBERは参照不可', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
