@@ -847,6 +847,90 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('監査ログはfrom/toで時間範囲絞り込みできる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit-time', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit-time', ownerType: 'USER', ownerId: 'u-audit-time' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const tx1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-audit-time',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 7, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -7 }
+        ]
+      }
+    });
+    expect(tx1.statusCode).toBe(200);
+    const tx1Id = tx1.json().transaction.txId as string;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const tx2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-audit-time',
+        txType: 'ADJUST',
+        entries: [
+          { accountId: user.accountId, amount: 2, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -2 }
+        ]
+      }
+    });
+    expect(tx2.statusCode).toBe(200);
+    const tx2Id = tx2.json().transaction.txId as string;
+
+    const allLogs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/audit-logs?tenantId=t-audit-time&action=TX_POST&order=asc&page=1&pageSize=100',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(allLogs.statusCode).toBe(200);
+    const allItems = allLogs.json().items as Array<{ targetId: string; createdAt: string }>;
+    const log1 = allItems.find((item) => item.targetId === tx1Id);
+    const log2 = allItems.find((item) => item.targetId === tx2Id);
+    expect(log1).toBeDefined();
+    expect(log2).toBeDefined();
+
+    const fromRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/audit-logs?tenantId=t-audit-time&action=TX_POST&from=${encodeURIComponent(log2!.createdAt)}`,
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(fromRes.statusCode).toBe(200);
+    const fromItems = fromRes.json().items as Array<{ targetId: string; createdAt: string }>;
+    expect(fromItems.some((item) => item.targetId === tx2Id)).toBe(true);
+    expect(fromItems.every((item) => item.createdAt >= log2!.createdAt)).toBe(true);
+
+    const toRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/audit-logs?tenantId=t-audit-time&action=TX_POST&to=${encodeURIComponent(log1!.createdAt)}`,
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(toRes.statusCode).toBe(200);
+    const toItems = toRes.json().items as Array<{ targetId: string; createdAt: string }>;
+    expect(toItems.some((item) => item.targetId === tx1Id)).toBe(true);
+    expect(toItems.every((item) => item.createdAt <= log1!.createdAt)).toBe(true);
+
+    await app.close();
+  });
+
   it('transactions一覧はorder/page/pageSizeで取得できる', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
