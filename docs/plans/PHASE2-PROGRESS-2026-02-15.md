@@ -57,9 +57,9 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (29 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260216T022338Z/phase2-summary.json`
-  - `artifacts/runs/20260216T022338Z/acceptance-vitest.json`
-  - `artifacts/runs/20260216T022338Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T022726Z/phase2-summary.json`
+  - `artifacts/runs/20260216T022726Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T022726Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（trend gate 閾値の実データ調整）
