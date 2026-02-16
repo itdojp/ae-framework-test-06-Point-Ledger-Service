@@ -38,17 +38,17 @@ jobs:
           ref: main
           path: .tools/ae-framework
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "pnpm"
           cache-dependency-path: .tools/ae-framework/pnpm-lock.yaml
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install ae-framework dependencies
         run: pnpm --dir .tools/ae-framework install --frozen-lockfile
