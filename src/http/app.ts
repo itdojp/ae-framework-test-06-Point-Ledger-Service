@@ -161,6 +161,10 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
 
   app.post('/api/v1/accounts', async (request) => {
     const body = createAccountSchema.parse(request.body);
+    const auth = readRole(request.headers);
+    if (auth.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can create accounts');
+    }
     const account = await service.createAccount(body);
     return service.getAccount(account.tenantId, account.accountId);
   });

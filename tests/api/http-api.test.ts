@@ -60,6 +60,44 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('口座作成はADMINのみ許可される', async () => {
+    const app = buildApp();
+
+    const memberRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u-member'
+      },
+      payload: { tenantId: 't-account-auth', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(memberRes.statusCode).toBe(403);
+
+    const viewerRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      headers: {
+        'x-role': 'VIEWER',
+        'x-user-id': 'u-viewer'
+      },
+      payload: { tenantId: 't-account-auth', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(viewerRes.statusCode).toBe(403);
+
+    const adminRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      headers: {
+        'x-role': 'ADMIN'
+      },
+      payload: { tenantId: 't-account-auth', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(adminRes.statusCode).toBe(200);
+
+    await app.close();
+  });
+
   it('VIEWERは取引登録できない', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
