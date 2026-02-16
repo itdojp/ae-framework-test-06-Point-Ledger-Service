@@ -309,6 +309,70 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('MEMBERは他者transaction詳細参照とreverse実行ができない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-tx-detail', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const user1Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-tx-detail', ownerType: 'USER', ownerId: 'u1' }
+    });
+    const user2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-rbac-tx-detail', ownerType: 'USER', ownerId: 'u2' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(user1Res.statusCode).toBe(200);
+    expect(user2Res.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user1 = user1Res.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-rbac-tx-detail',
+        txType: 'EARN',
+        entries: [
+          { accountId: user1.accountId, amount: 15, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -15 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+    const txId = earn.json().transaction.txId as string;
+
+    const otherDetail = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions/${txId}?tenantId=t-rbac-tx-detail`,
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u2'
+      }
+    });
+    expect(otherDetail.statusCode).toBe(403);
+
+    const memberReverse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${txId}/reverse`,
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u2'
+      },
+      payload: {
+        tenantId: 't-rbac-tx-detail'
+      }
+    });
+    expect(memberReverse.statusCode).toBe(403);
+
+    await app.close();
+  });
+
   it('MEMBERのcreatedByUserIdはx-user-idで上書きされる', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
