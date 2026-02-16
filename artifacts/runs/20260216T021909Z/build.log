@@ -1,0 +1,4 @@
+
+> point-ledger-service@0.1.0 build /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service
+> tsc -p tsconfig.json
+
