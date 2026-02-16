@@ -851,6 +851,128 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('transactions一覧はpostedFrom/postedToで絞り込める', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-time', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-time', ownerType: 'USER', ownerId: 'u-time' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const tx1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-tx-time',
+        txType: 'EARN',
+        externalRef: 'time-1',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+    expect(tx1.statusCode).toBe(200);
+    const tx1PostedAt = tx1.json().transaction.postedAt as string;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const tx2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-tx-time',
+        txType: 'ADJUST',
+        externalRef: 'time-2',
+        entries: [
+          { accountId: user.accountId, amount: 1, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -1 }
+        ]
+      }
+    });
+    expect(tx2.statusCode).toBe(200);
+    const tx2PostedAt = tx2.json().transaction.postedAt as string;
+
+    const fromRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions?tenantId=t-tx-time&postedFrom=${encodeURIComponent(tx2PostedAt)}`
+    });
+    expect(fromRes.statusCode).toBe(200);
+    const fromItems = fromRes.json() as Array<{ txId: string; postedAt: string }>;
+    expect(fromItems.some((item) => item.txId === tx2.json().transaction.txId)).toBe(true);
+    expect(fromItems.every((item) => item.postedAt >= tx2PostedAt)).toBe(true);
+
+    const toRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions?tenantId=t-tx-time&postedTo=${encodeURIComponent(tx1PostedAt)}`
+    });
+    expect(toRes.statusCode).toBe(200);
+    const toItems = toRes.json() as Array<{ txId: string; postedAt: string }>;
+    expect(toItems.some((item) => item.txId === tx1.json().transaction.txId)).toBe(true);
+    expect(toItems.every((item) => item.postedAt <= tx1PostedAt)).toBe(true);
+
+    await app.close();
+  });
+
+  it('MEMBERは他人口座をaccountId指定してtransactions検索できない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-account-rbac', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const user1Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-account-rbac', ownerType: 'USER', ownerId: 'u1' }
+    });
+    const user2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-tx-account-rbac', ownerType: 'USER', ownerId: 'u2' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(user1Res.statusCode).toBe(200);
+    expect(user2Res.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user1 = user1Res.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-tx-account-rbac',
+        txType: 'EARN',
+        entries: [
+          { accountId: user1.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+
+    const forbidden = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions?tenantId=t-tx-account-rbac&accountId=${user1.accountId}`,
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u2'
+      }
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    await app.close();
+  });
+
   it('metricsはADMINのみ参照できる', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
