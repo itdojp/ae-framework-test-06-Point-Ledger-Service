@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Pool } from 'pg';
 import { buildApp } from '../../src/http/app.js';
 import { PostgresReadRateLimitBackend } from '../../src/http/postgres-read-rate-limit-backend.js';
 
@@ -53,5 +54,49 @@ describe('Postgres Read Rate Limit E2E', () => {
     await app2.close();
     await backend1.close();
     await backend2.close();
+  });
+
+  runIfDb('cleanup設定で期限切れbucketをバッチ削除できる', async () => {
+    if (!connectionString) {
+      throw new Error('LEDGER_DATABASE_URL is not set');
+    }
+
+    const prefix = `cleanup-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const oldBucket = `${prefix}:old`;
+    const triggerBucket = `${prefix}:trigger`;
+
+    const backend = new PostgresReadRateLimitBackend({
+      connectionString,
+      cleanupIntervalMs: 1,
+      cleanupRetentionMs: 1,
+      cleanupBatchSize: 1
+    });
+    await backend.init();
+
+    await backend.consume(oldBucket, 10, 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await backend.consume(triggerBucket, 10, 60_000);
+
+    const pool = new Pool({ connectionString });
+    try {
+      const query = await pool.query<{ bucket_key: string }>(
+        `
+        SELECT bucket_key
+        FROM ledger_read_rate_limits
+        WHERE bucket_key LIKE $1
+        ORDER BY bucket_key ASC
+        `,
+        [`${prefix}:%`]
+      );
+
+      const keys = query.rows.map((row) => row.bucket_key);
+      expect(keys.includes(oldBucket)).toBe(false);
+      expect(keys.includes(triggerBucket)).toBe(true);
+
+      await pool.query('DELETE FROM ledger_read_rate_limits WHERE bucket_key LIKE $1', [`${prefix}:%`]);
+    } finally {
+      await pool.end();
+      await backend.close();
+    }
   });
 });

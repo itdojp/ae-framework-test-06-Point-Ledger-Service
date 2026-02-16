@@ -22,6 +22,7 @@ const readRateLimitActorKeyStrategyRaw = process.env['LEDGER_READ_RATE_LIMIT_ACT
 const readRateLimitBackendRaw = process.env['LEDGER_READ_RATE_LIMIT_BACKEND'] ?? 'memory';
 const readRateLimitCleanupIntervalMs = Number(process.env['LEDGER_READ_RATE_LIMIT_CLEANUP_INTERVAL_MS'] ?? 0);
 const readRateLimitCleanupRetentionMs = Number(process.env['LEDGER_READ_RATE_LIMIT_CLEANUP_RETENTION_MS'] ?? 0);
+const readRateLimitCleanupBatchSize = Number(process.env['LEDGER_READ_RATE_LIMIT_CLEANUP_BATCH_SIZE'] ?? 0);
 
 function isPositiveInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -81,7 +82,8 @@ if (isReadRateLimitEnabled) {
     const backend = new PostgresReadRateLimitBackend({
       connectionString,
       cleanupIntervalMs: isPositiveInt(readRateLimitCleanupIntervalMs) ? readRateLimitCleanupIntervalMs : undefined,
-      cleanupRetentionMs: isPositiveInt(readRateLimitCleanupRetentionMs) ? readRateLimitCleanupRetentionMs : undefined
+      cleanupRetentionMs: isPositiveInt(readRateLimitCleanupRetentionMs) ? readRateLimitCleanupRetentionMs : undefined,
+      cleanupBatchSize: isPositiveInt(readRateLimitCleanupBatchSize) ? readRateLimitCleanupBatchSize : undefined
     });
     await backend.init();
     readRateLimitBackend = backend;

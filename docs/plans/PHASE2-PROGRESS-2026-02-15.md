@@ -38,7 +38,9 @@
   - actorキー戦略: `LEDGER_READ_RATE_LIMIT_ACTOR_KEY_STRATEGY` (`ip|role_ip|user|role_user`)
   - バックエンド: `LEDGER_READ_RATE_LIMIT_BACKEND` (`memory|postgres`)
     - `postgres` 指定で複数プロセス共有制御
-    - cleanup設定: `LEDGER_READ_RATE_LIMIT_CLEANUP_INTERVAL_MS|CLEANUP_RETENTION_MS`
+    - cleanup設定: `LEDGER_READ_RATE_LIMIT_CLEANUP_INTERVAL_MS|CLEANUP_RETENTION_MS|CLEANUP_BATCH_SIZE`
+    - cleanup実装: advisory lock + batch delete で同時実行競合と長時間deleteを抑制
+    - DB index最適化: `idx_ledger_read_rate_limits_updated_at` を追加
   - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - 超過時ヘッダ: `Retry-After`
   - `GET /api/v1/metrics` に runtime counters（scope別 allowed/blocked）を追加
@@ -55,16 +57,16 @@
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込に加え、`LG-INV-005/007`（active lot残高合計と口座残高の一致、reversal entry 符号反転ミラー）を追加検証
 - API: 監査ログフィルタ、transactionsページング、metrics権限制御、読取レート制御（scope別/role別上限、actor戦略、ヘッダ、runtime counters）に加え、`LG-REV-002/003`（消費済みEARNの取消不可、SPEND取消のlot復元）と `LG-TX-001/002`（ADJUST時lot生成、SPEND時FEFO消費）の検証を追加
-- E2E(PostgreSQL): state-store と shared rate limiter を追加
+- E2E(PostgreSQL): state-store と shared rate limiter に加え、cleanup batch delete の動作検証を追加
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (51 passed, 2 skipped)
+- `pnpm run test`: pass (51 passed, 3 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260216T082822Z/phase2-summary.json`
-  - `artifacts/runs/20260216T082822Z/acceptance-vitest.json`
-  - `artifacts/runs/20260216T082822Z/acceptance-lgacc-summary.json`
-  - `artifacts/runs/20260216T082822Z/issue1-traceability-matrix.md`
+  - `artifacts/runs/20260216T083343Z/phase2-summary.json`
+  - `artifacts/runs/20260216T083343Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T083343Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T083343Z/issue1-traceability-matrix.md`
 - `scripts/ae/evaluation-run.sh`: pass（`spec lint` warnings: 0）
 
 ## 次の継続項目

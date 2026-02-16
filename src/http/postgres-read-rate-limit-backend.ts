@@ -5,14 +5,18 @@ export interface PostgresReadRateLimitBackendOptions {
   connectionString: string;
   cleanupIntervalMs?: number;
   cleanupRetentionMs?: number;
+  cleanupBatchSize?: number;
 }
 
 export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
   readonly kind = 'postgres' as const;
+  private static readonly CLEANUP_ADVISORY_LOCK_KEY = 4_391_027;
   private readonly pool: Pool;
   private lastCleanupAtMs = 0;
   private readonly cleanupIntervalMs: number;
   private readonly cleanupRetentionMs: number;
+  private readonly cleanupBatchSize: number;
+  private cleanupPromise: Promise<void> | null = null;
 
   constructor(options: PostgresReadRateLimitBackendOptions) {
     this.pool = new Pool({ connectionString: options.connectionString });
@@ -24,6 +28,10 @@ export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
       options.cleanupRetentionMs && Number.isInteger(options.cleanupRetentionMs) && options.cleanupRetentionMs > 0
         ? options.cleanupRetentionMs
         : 3_600_000;
+    this.cleanupBatchSize =
+      options.cleanupBatchSize && Number.isInteger(options.cleanupBatchSize) && options.cleanupBatchSize > 0
+        ? options.cleanupBatchSize
+        : 1_000;
   }
 
   async init(): Promise<void> {
@@ -38,6 +46,10 @@ export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
     await this.pool.query(`
       CREATE INDEX IF NOT EXISTS idx_ledger_read_rate_limits_reset_at
       ON ledger_read_rate_limits (reset_at);
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_ledger_read_rate_limits_updated_at
+      ON ledger_read_rate_limits (updated_at);
     `);
   }
 
@@ -148,14 +160,56 @@ export class PostgresReadRateLimitBackend implements ReadRateLimitBackend {
     if (nowMs - this.lastCleanupAtMs < this.cleanupIntervalMs) {
       return;
     }
+    if (this.cleanupPromise) {
+      return this.cleanupPromise;
+    }
     this.lastCleanupAtMs = nowMs;
+    this.cleanupPromise = this.runCleanup(nowMs).finally(() => {
+      this.cleanupPromise = null;
+    });
+    await this.cleanupPromise;
+  }
+
+  private async runCleanup(nowMs: number): Promise<void> {
     const cutoffMs = nowMs - this.cleanupRetentionMs;
-    await this.pool.query(
-      `
-      DELETE FROM ledger_read_rate_limits
-      WHERE reset_at < to_timestamp($1 / 1000.0)
-      `,
-      [cutoffMs]
-    );
+    const client = await this.pool.connect();
+    try {
+      const lockResult = await client.query<{ locked: boolean }>(
+        'SELECT pg_try_advisory_lock($1) AS locked',
+        [PostgresReadRateLimitBackend.CLEANUP_ADVISORY_LOCK_KEY]
+      );
+      if (!lockResult.rows[0]?.locked) {
+        return;
+      }
+
+      while (true) {
+        const deleteResult = await client.query(
+          `
+          WITH target AS (
+            SELECT bucket_key
+            FROM ledger_read_rate_limits
+            WHERE reset_at < to_timestamp($1 / 1000.0)
+            ORDER BY reset_at ASC
+            LIMIT $2
+          )
+          DELETE FROM ledger_read_rate_limits l
+          USING target t
+          WHERE l.bucket_key = t.bucket_key
+          `,
+          [cutoffMs, this.cleanupBatchSize]
+        );
+        const deletedRows = deleteResult.rowCount ?? 0;
+        if (deletedRows < this.cleanupBatchSize) {
+          break;
+        }
+      }
+    } finally {
+      try {
+        await client.query('SELECT pg_advisory_unlock($1)', [PostgresReadRateLimitBackend.CLEANUP_ADVISORY_LOCK_KEY]);
+      } catch {
+        // ignore unlock errors
+      }
+      client.release();
+    }
   }
 }

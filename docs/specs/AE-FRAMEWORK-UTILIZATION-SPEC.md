@@ -77,6 +77,7 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
   - cleanup設定（postgres）:
     - `LEDGER_READ_RATE_LIMIT_CLEANUP_INTERVAL_MS`
     - `LEDGER_READ_RATE_LIMIT_CLEANUP_RETENTION_MS`
+    - `LEDGER_READ_RATE_LIMIT_CLEANUP_BATCH_SIZE`
 - 対象API: `GET /api/v1/transactions`, `GET /api/v1/audit-logs`, `GET /api/v1/metrics`
 - 応答ヘッダ: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 - 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED` (`Retry-After` を付与)
