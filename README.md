@@ -69,6 +69,10 @@ node scripts/acceptance/generate-lgacc-summary.mjs \
 ```
 
 ## API補足
+- `POST /api/v1/transactions`
+  - `Idempotency-Key` ヘッダをサポート（body `idempotencyKey` と併用可）
+  - ヘッダと body のキー不一致時は `400 IDEMPOTENCY_KEY_MISMATCH`
+  - `MEMBER` ロール時は `createdByUserId` を `x-user-id` で強制上書き
 - `GET /api/v1/transactions`
   - クエリ: `tenantId`(必須), `accountId`, `txType`, `externalRef`, `postedFrom`, `postedTo`, `page`, `pageSize`, `order`
 - `GET /api/v1/audit-logs`

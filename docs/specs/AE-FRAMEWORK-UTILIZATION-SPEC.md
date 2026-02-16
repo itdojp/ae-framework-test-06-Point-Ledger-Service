@@ -82,6 +82,10 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - 超過時応答: HTTP 429 / `RATE_LIMIT_EXCEEDED` (`Retry-After` を付与)
 - 運用監視: `GET /api/v1/metrics` 応答に runtime rate limit counters（scope別 allowed/blocked）を含める
 
+1.5 API運用ルール（実装反映）
+- `POST /api/v1/transactions` は `Idempotency-Key` ヘッダを受理し、body `idempotencyKey` と不一致時は `400 IDEMPOTENCY_KEY_MISMATCH` を返す
+- `MEMBER` ロールの取引登録では `createdByUserId` を `x-user-id` で強制上書きし、監査主体のなりすましを防止する
+
 2. GitHub Actions 自動化
 - ワークフロー: `.github/workflows/ae-framework-evaluation.yml`
 - トリガー: `push`, `pull_request`, `schedule`, `workflow_dispatch`
