@@ -322,6 +322,14 @@ describe('HTTP API', () => {
     expect(page2.json()).toHaveLength(1);
     expect(page2.json()[0].externalRef).toBe('tx-1');
 
+    const byExternalRef = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-tx-page&externalRef=tx-1'
+    });
+    expect(byExternalRef.statusCode).toBe(200);
+    expect(byExternalRef.json()).toHaveLength(1);
+    expect(byExternalRef.json()[0].externalRef).toBe('tx-1');
+
     await app.close();
   });
 
