@@ -16,6 +16,7 @@
   - CI自動化: `.github/workflows/postgres-e2e.yml` で PostgreSQL service container 実行
   - CI定期実行: `schedule` 追加（毎日）
   - flake対策: `test:e2e:postgres --retry=2`
+  - 履歴集計: `scripts/ci/postgres-e2e-trend-report.mjs` による `postgres-e2e-trend.json` 生成
 - 監査ログ参照API追加
   - `GET /api/v1/audit-logs`
   - `ADMIN` のみ参照可能
@@ -55,9 +56,9 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (29 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260215T234218Z/phase2-summary.json`
-  - `artifacts/runs/20260215T234218Z/acceptance-vitest.json`
-  - `artifacts/runs/20260215T234218Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T021636Z/phase2-summary.json`
+  - `artifacts/runs/20260216T021636Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T021636Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（flake検知、再試行ポリシー）

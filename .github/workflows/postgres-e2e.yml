@@ -92,6 +92,14 @@ jobs:
 
           echo "RUN_DIR=${RUN_DIR}" >> "$GITHUB_ENV"
 
+      - name: Generate PostgreSQL E2E trend report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POSTGRES_E2E_WORKFLOW_FILE: postgres-e2e.yml
+          POSTGRES_E2E_TREND_WINDOW_DAYS: "14"
+          POSTGRES_E2E_TREND_MAX_PAGES: "5"
+        run: node scripts/ci/postgres-e2e-trend-report.mjs "$RUN_DIR/postgres-e2e-trend.json"
+
       - name: Upload PostgreSQL E2E artifacts
         uses: actions/upload-artifact@v4
         with:

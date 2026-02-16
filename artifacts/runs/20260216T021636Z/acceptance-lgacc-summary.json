@@ -1,0 +1,40 @@
+{
+  "generatedAtUtc": "2026-02-16T02:16:43.834Z",
+  "source": "/home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/artifacts/runs/20260216T021636Z/acceptance-vitest.json",
+  "totals": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "missing": 0
+  },
+  "criteria": [
+    {
+      "id": "LG-ACC-01",
+      "status": "passed",
+      "testName": "LG-ACC-01: 同時SPENDで過剰消費が起きない",
+      "durationMs": 2.8323090000000093,
+      "failureMessages": []
+    },
+    {
+      "id": "LG-ACC-02",
+      "status": "passed",
+      "testName": "LG-ACC-02: idempotency_key再送で二重計上されない",
+      "durationMs": 0.5329310000000191,
+      "failureMessages": []
+    },
+    {
+      "id": "LG-ACC-03",
+      "status": "passed",
+      "testName": "LG-ACC-03: 失効後、期限切れlotは残高に寄与しない",
+      "durationMs": 0.7493440000000078,
+      "failureMessages": []
+    },
+    {
+      "id": "LG-ACC-04",
+      "status": "passed",
+      "testName": "LG-ACC-04: EARN取消は未消費lotのみ可能",
+      "durationMs": 1.7882139999999822,
+      "failureMessages": []
+    }
+  ]
+}

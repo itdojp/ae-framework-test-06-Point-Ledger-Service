@@ -33,6 +33,7 @@ GitHub Actions で PostgreSQL E2E を実行する場合:
 - 出力: `artifacts/runs/<RUN_TS>/postgres-e2e-*.json|log`
 - 実行契機: `push`, `pull_request`, `schedule`, `workflow_dispatch`
 - flake対策: `test:e2e:postgres` を `--retry=2` で実行
+- トレンド集計: `artifacts/runs/<RUN_TS>/postgres-e2e-trend.json`（直近14日）
 
 永続化を有効化してサーバ起動する場合:
 ```bash

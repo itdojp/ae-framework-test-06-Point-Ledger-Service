@@ -93,7 +93,8 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 - 実施内容: PostgreSQL service container 上で `test:e2e:postgres` を実行
   - 対象: `postgres-state-store.e2e`, `postgres-rate-limit.e2e`
 - flake対策: `vitest --retry=2`
-- 出力: `artifacts/runs/<ts>/postgres-e2e-vitest.json`, `postgres-e2e.log`, `postgres-e2e-summary.json`
+- トレンド集計: `scripts/ci/postgres-e2e-trend-report.mjs`（GitHub API）
+- 出力: `artifacts/runs/<ts>/postgres-e2e-vitest.json`, `postgres-e2e.log`, `postgres-e2e-summary.json`, `postgres-e2e-trend.json`
 
 3. 生成物の自動保存
 - 非PRイベントでは `.ae/`, `.kiro/`, `artifacts/` の差分を自動コミット

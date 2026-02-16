@@ -1,0 +1,48 @@
+
+> ae-framework@1.0.0 ae-framework /home/devuser/work/CodeX/ae-framework_exp06/ae-framework
+> tsx src/cli/index.ts spec validate -i /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/spec/point-ledger-service.ae.md --output /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.ae/ae-ir.json
+
+🔍 Validating /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/spec/point-ledger-service.ae.md...
+📝 Compiling...
+✅ Compilation successful
+🔍 Linting...
+
+📊 Validation Results:
+   ✅ Errors: 0
+   ⚠️  Warnings: 2
+   ℹ️  Info: 0
+
+📋 Top Issues:
+⚠️  Entity 'LedgerTransaction' has no business rules defined
+⚠️  Entity 'LedgerEntry' has no business rules defined
+
+✅ Validation passed successfully
+   AE-IR saved to: /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.ae/ae-ir.json
+
+> ae-framework@1.0.0 ae-framework /home/devuser/work/CodeX/ae-framework_exp06/ae-framework
+> tsx src/cli/index.ts spec lint -i /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.ae/ae-ir.json
+
+🔍 Linting /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.ae/ae-ir.json...
+
+📊 Lint Results:
+   ✅ Errors: 0
+   ⚠️  Warnings: 2
+   ℹ️  Info: 0
+
+📋 Issues:
+⚠️  BIZ_001: Entity 'LedgerTransaction' has no business rules defined [domain]
+   💡 Consider adding invariants or constraints for this entity
+⚠️  BIZ_001: Entity 'LedgerEntry' has no business rules defined [domain]
+   💡 Consider adding invariants or constraints for this entity
+
+✅ All quality checks passed
+
+> ae-framework@1.0.0 ae-framework /home/devuser/work/CodeX/ae-framework_exp06/ae-framework
+> tsx src/cli/index.ts spec export -i /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.ae/ae-ir.json -f kiro -o /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.kiro/specs
+
+✅ Spec export completed
+   Format: kiro
+   Spec ID: point_ledger_service
+   Output: /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/.kiro/specs
+   Files: requirements.md, design.md, tasks.md
+Evaluation completed: /home/devuser/work/CodeX/ae-framework_exp06/ae-framework-test-06-Point-Ledger-Service/artifacts/runs/20260216T021636Z
