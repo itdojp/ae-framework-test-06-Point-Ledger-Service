@@ -77,6 +77,24 @@
           "note": "EXPIRE reversal is not allowed"
         },
         {
+          "id": "LG-REV-001",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "reverse on already-reversed source returns same reversal result"
+        },
+        {
+          "id": "LG-REV-002",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts", "tests/api/http-api.test.ts"],
+          "note": "EARN reversal is rejected if source lot is already consumed"
+        },
+        {
+          "id": "LG-REV-003",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts", "tests/api/http-api.test.ts"],
+          "note": "SPEND reversal restores lot remaining amount and balances"
+        },
+        {
           "id": "LG-TX-001",
           "status": "Covered",
           "evidence": ["tests/api/http-api.test.ts"],
@@ -152,6 +170,17 @@
           "status": "Covered",
           "evidence": ["tests/acceptance/ledger.acceptance.test.ts"],
           "note": "acceptance criterion"
+        }
+      ]
+    },
+    {
+      "title": "Document Metadata",
+      "rows": [
+        {
+          "id": "LG-SPEC-001",
+          "status": "Informational",
+          "evidence": ["docs/specs/ISSUE1-TRACEABILITY-MATRIX.md"],
+          "note": "specification document identifier (non-executable requirement)"
         }
       ]
     }

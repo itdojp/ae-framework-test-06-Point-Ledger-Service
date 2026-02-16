@@ -53,6 +53,8 @@
   - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
   - Issue #1 の LG-* 要件とテスト証跡の対応表を JSON ソースから自動生成: `docs/specs/issue1-traceability-map.json` -> `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
   - `phase2-run` で `artifacts/runs/<ts>/issue1-traceability-matrix.md` を自動保存
+  - 仕様適合確認レポート: `docs/reports/ISSUE1-CONFORMANCE-CHECK-2026-02-16.md`
+  - ae-framework有用性評価レポート: `docs/reports/AE-FRAMEWORK-USEFULNESS-EVALUATION-2026-02-16.md`
 
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込に加え、`LG-INV-005/007`（active lot残高合計と口座残高の一致、reversal entry 符号反転ミラー）を追加検証
@@ -68,6 +70,7 @@
   - `artifacts/runs/20260216T083343Z/acceptance-lgacc-summary.json`
   - `artifacts/runs/20260216T083343Z/issue1-traceability-matrix.md`
 - `scripts/ae/evaluation-run.sh`: pass（`spec lint` warnings: 0）
+  - `artifacts/runs/20260216T110833Z/summary.json`
 
 ## 次の継続項目
 - レート制御PostgreSQLバックエンドの運用チューニング（cleanup TTL、index最適化）

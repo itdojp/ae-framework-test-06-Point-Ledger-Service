@@ -22,6 +22,9 @@
 | LG-RULE-REV-001 | Covered | `tests/unit/ledger-service.test.ts` | EARN reversal allowed only when unconsumed |
 | LG-RULE-REV-002 | Covered | `tests/unit/ledger-service.test.ts`, `tests/api/http-api.test.ts` | SPEND reversal restores lot consumption |
 | LG-RULE-REV-003 | Covered | `tests/api/http-api.test.ts` | EXPIRE reversal is not allowed |
+| LG-REV-001 | Covered | `tests/api/http-api.test.ts` | reverse on already-reversed source returns same reversal result |
+| LG-REV-002 | Covered | `tests/unit/ledger-service.test.ts`, `tests/api/http-api.test.ts` | EARN reversal is rejected if source lot is already consumed |
+| LG-REV-003 | Covered | `tests/unit/ledger-service.test.ts`, `tests/api/http-api.test.ts` | SPEND reversal restores lot remaining amount and balances |
 | LG-TX-001 | Covered | `tests/api/http-api.test.ts` | lot is created when ADJUST/EARN entry has expiresAt |
 | LG-TX-002 | Covered | `tests/unit/ledger-service.test.ts`, `tests/api/http-api.test.ts` | SPEND generates FEFO consumptions |
 | LG-TX-003 | Covered | `tests/api/http-api.test.ts` | sum mismatch returns 400 |
@@ -40,7 +43,13 @@
 | LG-ACC-03 | Covered | `tests/acceptance/ledger.acceptance.test.ts` | acceptance criterion |
 | LG-ACC-04 | Covered | `tests/acceptance/ledger.acceptance.test.ts` | acceptance criterion |
 
-## 4. 自動化証跡
+## 4. Document Metadata
+
+| 要件ID | 検証状態 | 主な証跡 | 備考 |
+| --- | --- | --- | --- |
+| LG-SPEC-001 | Informational | `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md` | specification document identifier (non-executable requirement) |
+
+## 5. 自動化証跡
 
 - 実装・テスト・ae-framework 実行証跡は `artifacts/runs/<timestamp>/` に保存
 - トレーサビリティ定義ソース: `docs/specs/issue1-traceability-map.json`

@@ -12,6 +12,8 @@
 - ae-framework利用仕様: `docs/specs/AE-FRAMEWORK-UTILIZATION-SPEC.md`
 - 永続化後方互換ポリシー: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
 - Issue #1 トレーサビリティ: `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
+- Issue #1 適合確認レポート: `docs/reports/ISSUE1-CONFORMANCE-CHECK-2026-02-16.md`
+- ae-framework有用性評価: `docs/reports/AE-FRAMEWORK-USEFULNESS-EVALUATION-2026-02-16.md`
 - 初期AE-Spec: `spec/point-ledger-service.ae.md`
 
 ## 自動実行（ローカル）
