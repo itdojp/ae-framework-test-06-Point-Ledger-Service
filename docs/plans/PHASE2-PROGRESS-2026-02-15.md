@@ -49,17 +49,17 @@
   - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
 
 ## テスト
-- 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込テストを追加
+- 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込に加え、`LG-INV-005/007`（active lot残高合計と口座残高の一致、reversal entry 符号反転ミラー）を追加検証
 - API: 監査ログフィルタ、transactionsページング、metrics権限制御、読取レート制御（scope別/role別上限、actor戦略、ヘッダ、runtime counters）に加え、`LG-REV-002/003`（消費済みEARNの取消不可、SPEND取消のlot復元）と `LG-TX-001/002`（ADJUST時lot生成、SPEND時FEFO消費）の検証を追加
 - E2E(PostgreSQL): state-store と shared rate limiter を追加
 
 ## 現在の検証結果
 - `pnpm run typecheck`: pass
-- `pnpm run test`: pass (49 passed, 2 skipped)
+- `pnpm run test`: pass (51 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260216T065325Z/phase2-summary.json`
-  - `artifacts/runs/20260216T065325Z/acceptance-vitest.json`
-  - `artifacts/runs/20260216T065325Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T065658Z/phase2-summary.json`
+  - `artifacts/runs/20260216T065658Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T065658Z/acceptance-lgacc-summary.json`
 
 ## 次の継続項目
 - PostgreSQL E2E の定期実行結果レビュー（trend gate 閾値の実データ調整）

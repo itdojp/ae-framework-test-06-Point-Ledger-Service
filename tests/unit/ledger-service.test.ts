@@ -205,6 +205,68 @@ describe('LedgerService', () => {
     expect(lots[0]?.remainingAmount).toBe(60);
   });
 
+  it('REVERSAL entryはsource entryの符号反転ミラーになる', async () => {
+    const { service, tenantId, userAccountId, systemAccountId } = await setup();
+
+    const earn = await service.postTransaction({
+      tenantId,
+      txType: 'EARN',
+      entries: [
+        { accountId: userAccountId, amount: 45, expiresAt: '2026-12-31T00:00:00.000Z' },
+        { accountId: systemAccountId, amount: -45 }
+      ]
+    });
+
+    const reversal = await service.reverseTransaction(tenantId, earn.transaction.txId, 'admin');
+    const sourceDetail = await service.getTransactionDetail(tenantId, earn.transaction.txId);
+
+    expect(reversal.entries).toHaveLength(sourceDetail.entries.length);
+    for (const [index, sourceEntry] of sourceDetail.entries.entries()) {
+      const reversalEntry = reversal.entries[index];
+      expect(reversalEntry?.accountId).toBe(sourceEntry.accountId);
+      expect(reversalEntry?.amount).toBe(-sourceEntry.amount);
+    }
+  });
+
+  it('active lot残高合計はユーザー口座残高と一致する', async () => {
+    const { service, tenantId, userAccountId, systemAccountId } = await setup();
+
+    await service.postTransaction({
+      tenantId,
+      txType: 'EARN',
+      entries: [
+        { accountId: userAccountId, amount: 30, expiresAt: '2026-03-01T00:00:00.000Z' },
+        { accountId: systemAccountId, amount: -30 }
+      ]
+    });
+    await service.postTransaction({
+      tenantId,
+      txType: 'EARN',
+      entries: [
+        { accountId: userAccountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+        { accountId: systemAccountId, amount: -20 }
+      ]
+    });
+
+    const spend = await service.postTransaction({
+      tenantId,
+      txType: 'SPEND',
+      spend: { accountId: userAccountId, amount: 25 },
+      counterAccountId: systemAccountId
+    });
+    await service.reverseTransaction(tenantId, spend.transaction.txId, 'admin');
+    await service.expireLots(tenantId, new Date('2026-04-01T00:00:00.000Z'));
+
+    const user = await service.getAccount(tenantId, userAccountId);
+    const lots = await service.listLots(tenantId, userAccountId);
+    const activeRemainingSum = lots
+      .filter((lot) => lot.status === 'ACTIVE')
+      .reduce((acc, lot) => acc + lot.remainingAmount, 0);
+
+    expect(user.balance).toBe(20);
+    expect(activeRemainingSum).toBe(user.balance);
+  });
+
   it('失効バッチで期限切れロットをEXPIRE化する', async () => {
     const { service, tenantId, userAccountId, systemAccountId } = await setup();
 
