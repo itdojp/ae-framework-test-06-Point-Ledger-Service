@@ -60,6 +60,74 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('sum(entries.amount) != 0 の取引は400で拒否される', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-sum-invalid', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-sum-invalid', ownerType: 'USER', ownerId: 'u-sum-invalid' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-sum-invalid',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -9 }
+        ]
+      }
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json().code).toBe('TX_SUM_NOT_ZERO');
+
+    await app.close();
+  });
+
+  it('残高不足SPENDは409で拒否される', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-insufficient', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-insufficient', ownerType: 'USER', ownerId: 'u-insufficient' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const spend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-insufficient',
+        txType: 'SPEND',
+        spend: { accountId: user.accountId, amount: 1 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(spend.statusCode).toBe(409);
+    expect(spend.json().code).toBe('INSUFFICIENT_BALANCE');
+
+    await app.close();
+  });
+
   it('Idempotency-Keyヘッダで二重計上を防止できる', async () => {
     const app = buildApp();
 
