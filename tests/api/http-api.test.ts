@@ -651,6 +651,204 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('消費済みEARN transactionはreverseできない', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-earned-consumed', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-earned-consumed', ownerType: 'USER', ownerId: 'u-reverse-earned-consumed' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-reverse-earned-consumed',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -20 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+    const earnTxId = earn.json().transaction.txId as string;
+
+    const spend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-reverse-earned-consumed',
+        txType: 'SPEND',
+        spend: { accountId: user.accountId, amount: 1 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(spend.statusCode).toBe(200);
+
+    const reverseEarn = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${earnTxId}/reverse`,
+      payload: {
+        tenantId: 't-reverse-earned-consumed'
+      }
+    });
+    expect(reverseEarn.statusCode).toBe(409);
+    expect(reverseEarn.json().code).toBe('EARN_ALREADY_CONSUMED');
+
+    await app.close();
+  });
+
+  it('ADJUSTでexpiresAt付きentryを登録するとlotが生成される', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-adjust-lot', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-adjust-lot', ownerType: 'USER', ownerId: 'u-adjust-lot' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const adjust = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-adjust-lot',
+        txType: 'ADJUST',
+        entries: [
+          { accountId: user.accountId, amount: 7, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -7 }
+        ]
+      }
+    });
+    expect(adjust.statusCode).toBe(200);
+
+    const lots = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}/lots?tenantId=t-adjust-lot`
+    });
+    expect(lots.statusCode).toBe(200);
+    expect(lots.json()).toHaveLength(1);
+    expect(lots.json()[0].sourceTxId).toBe(adjust.json().transaction.txId);
+    expect(lots.json()[0].originalAmount).toBe(7);
+    expect(lots.json()[0].remainingAmount).toBe(7);
+    expect(lots.json()[0].status).toBe('ACTIVE');
+    expect(lots.json()[0].expiresAt).toBe('2026-12-31T00:00:00.000Z');
+
+    await app.close();
+  });
+
+  it('SPENDはFEFO順でconsumptionを作成する', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-fefo-api', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-fefo-api', ownerType: 'USER', ownerId: 'u-fefo-api' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earnLateExpiry = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-fefo-api',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 8, expiresAt: '2026-06-01T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -8 }
+        ]
+      }
+    });
+    expect(earnLateExpiry.statusCode).toBe(200);
+
+    const earnEarlyExpiry = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-fefo-api',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-05-01T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+    expect(earnEarlyExpiry.statusCode).toBe(200);
+
+    const lotsBeforeSpend = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}/lots?tenantId=t-fefo-api`
+    });
+    expect(lotsBeforeSpend.statusCode).toBe(200);
+    const earlyLot = lotsBeforeSpend
+      .json()
+      .find((lot: { expiresAt: string }) => lot.expiresAt === '2026-05-01T00:00:00.000Z');
+    const lateLot = lotsBeforeSpend
+      .json()
+      .find((lot: { expiresAt: string }) => lot.expiresAt === '2026-06-01T00:00:00.000Z');
+    expect(earlyLot).toBeTruthy();
+    expect(lateLot).toBeTruthy();
+
+    const spend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-fefo-api',
+        txType: 'SPEND',
+        spend: { accountId: user.accountId, amount: 15 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(spend.statusCode).toBe(200);
+    expect(spend.json().consumptions).toHaveLength(2);
+    expect(spend.json().consumptions[0].lotId).toBe(earlyLot.lotId);
+    expect(spend.json().consumptions[0].amount).toBe(10);
+    expect(spend.json().consumptions[1].lotId).toBe(lateLot.lotId);
+    expect(spend.json().consumptions[1].amount).toBe(5);
+
+    const lotsAfterSpend = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}/lots?tenantId=t-fefo-api`
+    });
+    expect(lotsAfterSpend.statusCode).toBe(200);
+    const earlyLotAfter = lotsAfterSpend
+      .json()
+      .find((lot: { lotId: string }) => lot.lotId === earlyLot.lotId);
+    const lateLotAfter = lotsAfterSpend
+      .json()
+      .find((lot: { lotId: string }) => lot.lotId === lateLot.lotId);
+    expect(earlyLotAfter.remainingAmount).toBe(0);
+    expect(earlyLotAfter.status).toBe('CONSUMED');
+    expect(lateLotAfter.remainingAmount).toBe(3);
+    expect(lateLotAfter.status).toBe('ACTIVE');
+
+    await app.close();
+  });
+
   it('失効バッチはADMINのみ実行可能で、同一lotを二重失効しない', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
