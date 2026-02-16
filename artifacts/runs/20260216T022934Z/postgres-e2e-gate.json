@@ -1,0 +1,19 @@
+{
+  "generatedAtUtc": "2026-02-16T02:29:39.244Z",
+  "source": "artifacts/runs/20260216T022934Z/postgres-e2e-trend.json",
+  "thresholds": {
+    "minCompletedRuns": 5,
+    "minSuccessRate": 0.95,
+    "maxRerunRate": 0.2
+  },
+  "enforce": false,
+  "status": "fail",
+  "checks": {
+    "completedRuns": 15,
+    "successRate": 0.0667,
+    "rerunRate": 0
+  },
+  "failures": [
+    "successRate 0.0667 < minSuccessRate 0.95"
+  ]
+}
