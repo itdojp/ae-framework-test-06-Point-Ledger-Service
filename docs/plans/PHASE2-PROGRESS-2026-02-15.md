@@ -47,6 +47,7 @@
   - `scripts/acceptance/run-and-report.sh` を追加
   - `scripts/acceptance/generate-lgacc-summary.mjs` を追加
   - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
+  - Issue #1 の LG-* 要件とテスト証跡の対応表を追加: `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
 
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込に加え、`LG-INV-005/007`（active lot残高合計と口座残高の一致、reversal entry 符号反転ミラー）を追加検証

@@ -121,4 +121,5 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 ## 6. 運用ルール
 - 仕様変更時は必ず `evaluation-run.sh` を実行し、生成差分を同一PRでコミットする。
 - 実装変更時は `phase1-run.sh` を実行し、`typecheck/test/ae-*` ログを保存する。
+- Issue #1 要件コード（LG-*）のカバレッジ更新時は `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md` も同一コミットで更新する。
 - 失敗時は `artifacts/runs/<ts>/summary.json` を根拠に原因を記録する。
