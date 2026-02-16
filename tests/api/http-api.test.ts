@@ -388,6 +388,59 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('tenant不一致のtransaction参照・取消は404になる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-auth-tx-a', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-auth-tx-a', ownerType: 'USER', ownerId: 'u-auth-tx' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-auth-tx-a',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 10, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -10 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+    const txId = earn.json().transaction.txId as string;
+
+    const mismatchDetail = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions/${txId}?tenantId=t-auth-tx-b`
+    });
+    expect(mismatchDetail.statusCode).toBe(404);
+
+    const mismatchReverse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${txId}/reverse`,
+      headers: {
+        'x-role': 'ADMIN'
+      },
+      payload: {
+        tenantId: 't-auth-tx-b'
+      }
+    });
+    expect(mismatchReverse.statusCode).toBe(404);
+
+    await app.close();
+  });
+
   it('ADMINは監査ログ参照でき、MEMBERは参照不可', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
