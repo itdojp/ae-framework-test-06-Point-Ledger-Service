@@ -9,6 +9,7 @@ SPEC_FILE="$PROJECT_ROOT/spec/point-ledger-service.ae.md"
 AE_IR_FILE="$PROJECT_ROOT/.ae/ae-ir.json"
 AE_IR_HASH_FILE="$PROJECT_ROOT/.ae/ae-ir.sha256"
 KIRO_DIR="$PROJECT_ROOT/.kiro/specs"
+RUN_KIRO_DIR="$RUN_DIR/kiro-specs"
 
 mkdir -p "$PROJECT_ROOT/.ae" "$KIRO_DIR" "$RUN_DIR"
 
@@ -38,6 +39,8 @@ pnpm --dir "$AE_FRAMEWORK_DIR" run ae-framework spec export -i "$AE_IR_FILE" -f 
 sha256sum "$AE_IR_FILE" > "$AE_IR_HASH_FILE"
 cp "$AE_IR_FILE" "$RUN_DIR/ae-ir.json"
 cp "$AE_IR_HASH_FILE" "$RUN_DIR/ae-ir.sha256"
+mkdir -p "$RUN_KIRO_DIR"
+cp -R "$KIRO_DIR/." "$RUN_KIRO_DIR/"
 
 cat > "$RUN_DIR/summary.json" <<JSON
 {
@@ -52,7 +55,10 @@ cat > "$RUN_DIR/summary.json" <<JSON
   "outputs": [
     ".ae/ae-ir.json",
     ".ae/ae-ir.sha256",
-    ".kiro/specs"
+    ".kiro/specs",
+    "artifacts/runs/$RUN_TS/ae-ir.json",
+    "artifacts/runs/$RUN_TS/ae-ir.sha256",
+    "artifacts/runs/$RUN_TS/kiro-specs"
   ],
   "status": "success"
 }
