@@ -77,6 +77,8 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add artifacts/runs
             git commit -m "chore: update ae-framework evaluation artifacts [skip ci]"
+            # Keep only artifacts commits; discard unstaged .ae/.kiro changes before pull --rebase.
+            git restore --worktree .ae .kiro
             pushed=0
             for attempt in 1 2 3; do
               if git push; then
