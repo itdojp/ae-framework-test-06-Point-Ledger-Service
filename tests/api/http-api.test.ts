@@ -777,6 +777,76 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('監査ログはactionとactorUserIdで絞り込みできる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit-filter', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-audit-filter', ownerType: 'USER', ownerId: 'u-audit-filter' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const tx1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-audit-filter',
+        txType: 'EARN',
+        createdByUserId: 'actor-a',
+        entries: [
+          { accountId: user.accountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -20 }
+        ]
+      }
+    });
+    expect(tx1.statusCode).toBe(200);
+
+    const tx2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-audit-filter',
+        txType: 'ADJUST',
+        createdByUserId: 'actor-b',
+        entries: [
+          { accountId: user.accountId, amount: 3, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -3 }
+        ]
+      }
+    });
+    expect(tx2.statusCode).toBe(200);
+
+    const actorAOnly = await app.inject({
+      method: 'GET',
+      url: '/api/v1/audit-logs?tenantId=t-audit-filter&action=TX_POST&actorUserId=actor-a',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(actorAOnly.statusCode).toBe(200);
+    const payload = actorAOnly.json();
+    expect(payload.total).toBeGreaterThan(0);
+    expect(payload.items.every((item: { action: string; actorUserId: string | null }) => item.action === 'TX_POST')).toBe(true);
+    expect(payload.items.every((item: { actorUserId: string | null }) => item.actorUserId === 'actor-a')).toBe(true);
+
+    const noMatch = await app.inject({
+      method: 'GET',
+      url: '/api/v1/audit-logs?tenantId=t-audit-filter&action=TX_POST&actorUserId=actor-z',
+      headers: { 'x-role': 'ADMIN' }
+    });
+    expect(noMatch.statusCode).toBe(200);
+    expect(noMatch.json().total).toBe(0);
+    expect(noMatch.json().items).toHaveLength(0);
+
+    await app.close();
+  });
+
   it('transactions一覧はorder/page/pageSizeで取得できる', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
