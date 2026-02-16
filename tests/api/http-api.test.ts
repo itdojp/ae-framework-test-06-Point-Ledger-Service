@@ -180,6 +180,27 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('SYSTEM口座の重複作成は409になる', async () => {
+    const app = buildApp();
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-system-dup', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-system-dup', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json().code).toBe('SYSTEM_ACCOUNT_EXISTS');
+
+    await app.close();
+  });
+
   it('VIEWERは取引登録できない', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
@@ -437,6 +458,63 @@ describe('HTTP API', () => {
       }
     });
     expect(mismatchReverse.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('reverseは同一transactionに対して冪等に同一結果を返す', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-idem', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-idem', ownerType: 'USER', ownerId: 'u-reverse-idem' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-reverse-idem',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 12, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -12 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+    const sourceTxId = earn.json().transaction.txId as string;
+
+    const firstReverse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${sourceTxId}/reverse`,
+      payload: {
+        tenantId: 't-reverse-idem',
+        actorUserId: 'admin-1'
+      }
+    });
+    expect(firstReverse.statusCode).toBe(200);
+
+    const secondReverse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${sourceTxId}/reverse`,
+      payload: {
+        tenantId: 't-reverse-idem',
+        actorUserId: 'admin-2'
+      }
+    });
+    expect(secondReverse.statusCode).toBe(200);
+    expect(secondReverse.json().transaction.txId).toBe(firstReverse.json().transaction.txId);
+    expect(secondReverse.json().transaction.reversalOfTxId).toBe(sourceTxId);
 
     await app.close();
   });
