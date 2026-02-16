@@ -246,7 +246,7 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
       if (spendAccount.ownerType !== 'USER' || spendAccount.ownerId !== auth.userId) {
         throw new ForbiddenError('Cannot spend points from another account');
       }
-      body.createdByUserId = body.createdByUserId ?? auth.userId;
+      body.createdByUserId = auth.userId;
     }
 
     return service.postTransaction(body);

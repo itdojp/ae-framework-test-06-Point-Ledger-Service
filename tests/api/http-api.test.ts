@@ -288,6 +288,76 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('MEMBERのcreatedByUserIdはx-user-idで上書きされる', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-member-actor', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-member-actor', ownerType: 'USER', ownerId: 'u-member-actor' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-member-actor',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -20 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+
+    const firstSpend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u-member-actor'
+      },
+      payload: {
+        tenantId: 't-member-actor',
+        txType: 'SPEND',
+        idempotencyKey: 'member-actor-k1',
+        createdByUserId: 'spoofed-user',
+        spend: { accountId: user.accountId, amount: 5 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(firstSpend.statusCode).toBe(200);
+
+    const secondSpend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'x-role': 'MEMBER',
+        'x-user-id': 'u-member-actor'
+      },
+      payload: {
+        tenantId: 't-member-actor',
+        txType: 'SPEND',
+        idempotencyKey: 'member-actor-k1',
+        spend: { accountId: user.accountId, amount: 5 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(secondSpend.statusCode).toBe(200);
+    expect(secondSpend.json().transaction.txId).toBe(firstSpend.json().transaction.txId);
+
+    await app.close();
+  });
+
   it('tenant不一致の口座アクセスは404になる', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
