@@ -11,6 +11,7 @@
 - 開発計画: `docs/plans/INITIAL-DEVELOPMENT-PLAN.md`
 - ae-framework利用仕様: `docs/specs/AE-FRAMEWORK-UTILIZATION-SPEC.md`
 - 永続化後方互換ポリシー: `docs/specs/PERSISTENCE-BACKWARD-COMPAT-POLICY.md`
+- Issue #1 トレーサビリティ: `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
 - 初期AE-Spec: `spec/point-ledger-service.ae.md`
 
 ## 自動実行（ローカル）
@@ -36,6 +37,7 @@ GitHub Actions で PostgreSQL E2E を実行する場合:
 - トレンド集計: `artifacts/runs/<RUN_TS>/postgres-e2e-trend.json`（直近14日）
 - 信頼性ゲート: `artifacts/runs/<RUN_TS>/postgres-e2e-gate.json`
   - 閾値: `minCompletedRuns=5`, `minSuccessRate=0.95`, `maxRerunRate=0.20`
+  - 判定母集団: 直近完了 run 10件（`recentCompletedLimit=10`）
   - `schedule` 実行時のみ fail-fast 判定を有効化
 
 永続化を有効化してサーバ起動する場合:
@@ -66,6 +68,11 @@ pnpm run test:e2e:postgres
 node scripts/acceptance/generate-lgacc-summary.mjs \
   artifacts/runs/<RUN_TS>/acceptance-vitest.json \
   artifacts/runs/<RUN_TS>/acceptance-lgacc-summary.json
+```
+
+Issue #1 トレーサビリティ表を生成する場合:
+```bash
+pnpm run traceability:issue1
 ```
 
 ## API補足

@@ -1,0 +1,164 @@
+{
+  "title": "Issue #1 Traceability Matrix",
+  "specUrl": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/issues/1",
+  "sections": [
+    {
+      "title": "Invariants (LG-INV-*)",
+      "rows": [
+        {
+          "id": "LG-INV-001",
+          "status": "Covered",
+          "evidence": ["tests/property/invariants.property.test.ts"],
+          "note": "transaction sum == 0"
+        },
+        {
+          "id": "LG-INV-002",
+          "status": "Covered",
+          "evidence": ["tests/mbt/ledger.mbt.test.ts"],
+          "note": "model balance consistency"
+        },
+        {
+          "id": "LG-INV-003",
+          "status": "Covered",
+          "evidence": ["tests/property/invariants.property.test.ts"],
+          "note": "non-negative balance"
+        },
+        {
+          "id": "LG-INV-004",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts"],
+          "note": "lot remaining amount range"
+        },
+        {
+          "id": "LG-INV-005",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts"],
+          "note": "sum(active lot remaining) == user balance"
+        },
+        {
+          "id": "LG-INV-006",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts", "tests/api/http-api.test.ts"],
+          "note": "expired lots do not contribute to balance"
+        },
+        {
+          "id": "LG-INV-007",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts"],
+          "note": "reversal entries are sign-inverted mirror"
+        }
+      ]
+    },
+    {
+      "title": "Business Rules (LG-RULE-*/LG-TX-*/LG-EXP-*)",
+      "rows": [
+        {
+          "id": "LG-RULE-ACC-001",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "duplicate SYSTEM account returns 409"
+        },
+        {
+          "id": "LG-RULE-REV-001",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts"],
+          "note": "EARN reversal allowed only when unconsumed"
+        },
+        {
+          "id": "LG-RULE-REV-002",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts", "tests/api/http-api.test.ts"],
+          "note": "SPEND reversal restores lot consumption"
+        },
+        {
+          "id": "LG-RULE-REV-003",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "EXPIRE reversal is not allowed"
+        },
+        {
+          "id": "LG-TX-001",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "lot is created when ADJUST/EARN entry has expiresAt"
+        },
+        {
+          "id": "LG-TX-002",
+          "status": "Covered",
+          "evidence": ["tests/unit/ledger-service.test.ts", "tests/api/http-api.test.ts"],
+          "note": "SPEND generates FEFO consumptions"
+        },
+        {
+          "id": "LG-TX-003",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "sum mismatch returns 400"
+        },
+        {
+          "id": "LG-TX-004",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts", "tests/unit/ledger-service.test.ts"],
+          "note": "idempotency resend returns same result"
+        },
+        {
+          "id": "LG-EXP-001",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "expiration batch is idempotent per lot"
+        }
+      ]
+    },
+    {
+      "title": "Auth, Concurrency, Acceptance",
+      "rows": [
+        {
+          "id": "LG-CC-001",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts", "tests/unit/ledger-service.test.ts"],
+          "note": "concurrent spend does not over-consume"
+        },
+        {
+          "id": "LG-AUTH-001",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "tenant mismatch returns 404"
+        },
+        {
+          "id": "LG-AUTH-002",
+          "status": "Covered",
+          "evidence": ["tests/api/http-api.test.ts"],
+          "note": "spend on another user's account is forbidden"
+        },
+        {
+          "id": "LG-ACC-01",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts"],
+          "note": "acceptance criterion"
+        },
+        {
+          "id": "LG-ACC-02",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts"],
+          "note": "acceptance criterion"
+        },
+        {
+          "id": "LG-ACC-03",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts"],
+          "note": "acceptance criterion"
+        },
+        {
+          "id": "LG-ACC-04",
+          "status": "Covered",
+          "evidence": ["tests/acceptance/ledger.acceptance.test.ts"],
+          "note": "acceptance criterion"
+        }
+      ]
+    }
+  ],
+  "automationEvidence": [
+    "scripts/ae/phase2-run.sh",
+    ".github/workflows/ae-framework-evaluation.yml",
+    ".github/workflows/postgres-e2e.yml"
+  ]
+}

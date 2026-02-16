@@ -22,6 +22,7 @@
     "test:e2e:postgres": "vitest run tests/e2e",
     "test:property": "vitest run tests/property",
     "test:mbt": "vitest run tests/mbt",
+    "traceability:issue1": "node scripts/traceability/generate-issue1-traceability-matrix.mjs docs/specs/ISSUE1-TRACEABILITY-MATRIX.md",
     "verify:dev": "pnpm run typecheck && pnpm run test",
     "ae:phase2": "scripts/ae/phase2-run.sh"
   },

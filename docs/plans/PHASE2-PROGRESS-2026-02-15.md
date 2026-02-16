@@ -47,8 +47,10 @@
   - `scripts/ae/phase2-run.sh` を追加
   - `scripts/acceptance/run-and-report.sh` を追加
   - `scripts/acceptance/generate-lgacc-summary.mjs` を追加
+  - `scripts/traceability/generate-issue1-traceability-matrix.mjs` を追加
   - 受入テスト JSON と LG-ACC 判定サマリを artifacts に保存可能
-  - Issue #1 の LG-* 要件とテスト証跡の対応表を追加: `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
+  - Issue #1 の LG-* 要件とテスト証跡の対応表を JSON ソースから自動生成: `docs/specs/issue1-traceability-map.json` -> `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md`
+  - `phase2-run` で `artifacts/runs/<ts>/issue1-traceability-matrix.md` を自動保存
 
 ## テスト
 - 単体: 永続化ラウンドトリップ + 旧スナップショット互換読込に加え、`LG-INV-005/007`（active lot残高合計と口座残高の一致、reversal entry 符号反転ミラー）を追加検証
@@ -59,9 +61,11 @@
 - `pnpm run typecheck`: pass
 - `pnpm run test`: pass (51 passed, 2 skipped)
 - `scripts/ae/phase2-run.sh`: pass
-  - `artifacts/runs/20260216T070426Z/phase2-summary.json`
-  - `artifacts/runs/20260216T070426Z/acceptance-vitest.json`
-  - `artifacts/runs/20260216T070426Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T082822Z/phase2-summary.json`
+  - `artifacts/runs/20260216T082822Z/acceptance-vitest.json`
+  - `artifacts/runs/20260216T082822Z/acceptance-lgacc-summary.json`
+  - `artifacts/runs/20260216T082822Z/issue1-traceability-matrix.md`
+- `scripts/ae/evaluation-run.sh`: pass（`spec lint` warnings: 0）
 
 ## 次の継続項目
 - レート制御PostgreSQLバックエンドの運用チューニング（cleanup TTL、index最適化）

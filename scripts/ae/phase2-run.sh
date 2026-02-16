@@ -19,6 +19,11 @@ node "$PROJECT_ROOT/scripts/acceptance/generate-lgacc-summary.mjs" \
   "$RUN_DIR/acceptance-lgacc-summary.json" \
   > "$RUN_DIR/acceptance-summary.log" 2>&1
 
+node "$PROJECT_ROOT/scripts/traceability/generate-issue1-traceability-matrix.mjs" \
+  "$PROJECT_ROOT/docs/specs/ISSUE1-TRACEABILITY-MATRIX.md" \
+  > "$RUN_DIR/traceability-matrix.log" 2>&1
+cp "$PROJECT_ROOT/docs/specs/ISSUE1-TRACEABILITY-MATRIX.md" "$RUN_DIR/issue1-traceability-matrix.md"
+
 AE_FRAMEWORK_DIR="$AE_FRAMEWORK_DIR" RUN_TS="$RUN_TS" "$PROJECT_ROOT/scripts/ae/evaluation-run.sh" > "$RUN_DIR/ae-evaluation.log" 2>&1
 
 set +e
@@ -41,6 +46,7 @@ cat > "$RUN_DIR/phase2-summary.json" <<JSON
     "pnpm run build",
     "scripts/acceptance/run-and-report.sh",
     "scripts/acceptance/generate-lgacc-summary.mjs",
+    "scripts/traceability/generate-issue1-traceability-matrix.mjs",
     "scripts/ae/evaluation-run.sh",
     "ae validate --traceability",
     "ae user-stories --generate"

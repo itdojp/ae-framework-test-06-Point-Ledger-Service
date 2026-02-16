@@ -50,6 +50,13 @@ Multi-tenant point ledger service for earning, spending, reversal, and expiratio
 - Remaining amount in each lot must stay between zero and original amount.
 - Reversal transaction entries must be sign-inverted mirror of the source transaction.
 
+## Business Rules
+
+1. **BR-TX-001**: For each `LedgerTransaction`, the sum of linked `LedgerEntry.amount` must be exactly zero.
+2. **BR-TX-002**: A `LedgerTransaction` must have at least two `LedgerEntry` records and both debit and credit directions.
+3. **BR-ENTRY-001**: Each `LedgerEntry` must reference exactly one `LedgerTransaction` and one target `Account`.
+4. **BR-ENTRY-002**: `LedgerEntry.amount` must be non-zero and sign indicates balance direction (positive=credit, negative=debit).
+
 ## Use Cases
 
 ### Earn Points

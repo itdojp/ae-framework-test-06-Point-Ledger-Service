@@ -49,8 +49,8 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 
 1.2 実装検証＋受入レポート付き自動化（Phase 2）
 - スクリプト: `scripts/ae/phase2-run.sh`
-- 実施内容: `typecheck` → `test` → `build` → `test:acceptance:report` → `generate-lgacc-summary` → `evaluation-run` → `traceability` → `user-stories`
-- 出力: `artifacts/runs/<ts>/phase2-summary.json`, `acceptance-vitest.json`, `acceptance-lgacc-summary.json`
+- 実施内容: `typecheck` → `test` → `build` → `test:acceptance:report` → `generate-lgacc-summary` → `generate-issue1-traceability-matrix` → `evaluation-run` → `traceability` → `user-stories`
+- 出力: `artifacts/runs/<ts>/phase2-summary.json`, `acceptance-vitest.json`, `acceptance-lgacc-summary.json`, `issue1-traceability-matrix.md`
 
 1.3 永続化バックエンド切替
 - File: `LEDGER_STATE_BACKEND=file` + `LEDGER_STATE_FILE=<path>`
@@ -122,5 +122,5 @@ Point Ledger Service 開発で利用する ae-framework ツールと自動化方
 ## 6. 運用ルール
 - 仕様変更時は必ず `evaluation-run.sh` を実行し、生成差分を同一PRでコミットする。
 - 実装変更時は `phase1-run.sh` を実行し、`typecheck/test/ae-*` ログを保存する。
-- Issue #1 要件コード（LG-*）のカバレッジ更新時は `docs/specs/ISSUE1-TRACEABILITY-MATRIX.md` も同一コミットで更新する。
+- Issue #1 要件コード（LG-*）のカバレッジ更新時は `pnpm run traceability:issue1` を実行し、`docs/specs/ISSUE1-TRACEABILITY-MATRIX.md` を同一コミットで更新する。
 - 失敗時は `artifacts/runs/<ts>/summary.json` を根拠に原因を記録する。

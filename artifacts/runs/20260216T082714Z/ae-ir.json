@@ -2,8 +2,8 @@
   "version": "1.0.0",
   "metadata": {
     "name": "Point_Ledger_Service",
-    "created": "2026-02-16T08:28:33.830Z",
-    "updated": "2026-02-16T08:28:33.830Z",
+    "created": "2026-02-16T08:27:16.976Z",
+    "updated": "2026-02-16T08:27:16.976Z",
     "description": "Multi-tenant point ledger service for earning, spending, reversal, and expiration processing."
   },
   "glossary": [
