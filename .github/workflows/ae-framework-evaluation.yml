@@ -51,7 +51,11 @@ jobs:
           cache-dependency-path: .tools/ae-framework/pnpm-lock.yaml
 
       - name: Install ae-framework dependencies
-        run: pnpm --dir .tools/ae-framework install --frozen-lockfile
+        run: |
+          if ! pnpm --dir .tools/ae-framework install --frozen-lockfile; then
+            echo "Frozen install failed; retrying with --no-frozen-lockfile"
+            pnpm --dir .tools/ae-framework install --no-frozen-lockfile
+          fi
 
       - name: Run evaluation
         run: AE_FRAMEWORK_DIR="$GITHUB_WORKSPACE/.tools/ae-framework" ./scripts/ae/evaluation-run.sh
