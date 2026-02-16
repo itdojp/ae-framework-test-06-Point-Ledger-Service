@@ -849,6 +849,90 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('SPENDのreverseでlot残高と口座残高が復元される', async () => {
+    const app = buildApp();
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-spend', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-reverse-spend', ownerType: 'USER', ownerId: 'u-reverse-spend' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const earn = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-reverse-spend',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 20, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -20 }
+        ]
+      }
+    });
+    expect(earn.statusCode).toBe(200);
+
+    const spend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      payload: {
+        tenantId: 't-reverse-spend',
+        txType: 'SPEND',
+        spend: { accountId: user.accountId, amount: 7 },
+        counterAccountId: system.accountId
+      }
+    });
+    expect(spend.statusCode).toBe(200);
+    const spendTxId = spend.json().transaction.txId as string;
+    expect(spend.json().consumptions).toHaveLength(1);
+    expect(spend.json().consumptions[0].amount).toBe(7);
+
+    const reverseSpend = await app.inject({
+      method: 'POST',
+      url: `/api/v1/transactions/${spendTxId}/reverse`,
+      payload: {
+        tenantId: 't-reverse-spend',
+        actorUserId: 'admin-reverse-spend'
+      }
+    });
+    expect(reverseSpend.statusCode).toBe(200);
+    expect(reverseSpend.json().transaction.txType).toBe('REVERSAL');
+    expect(reverseSpend.json().transaction.reversalOfTxId).toBe(spendTxId);
+
+    const sourceAfterReverse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/transactions/${spendTxId}?tenantId=t-reverse-spend`
+    });
+    expect(sourceAfterReverse.statusCode).toBe(200);
+    expect(sourceAfterReverse.json().transaction.status).toBe('REVERSED');
+
+    const accountAfterReverse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}?tenantId=t-reverse-spend`
+    });
+    expect(accountAfterReverse.statusCode).toBe(200);
+    expect(accountAfterReverse.json().balance).toBe(20);
+
+    const lotsAfterReverse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/accounts/${user.accountId}/lots?tenantId=t-reverse-spend`
+    });
+    expect(lotsAfterReverse.statusCode).toBe(200);
+    expect(lotsAfterReverse.json()).toHaveLength(1);
+    expect(lotsAfterReverse.json()[0].remainingAmount).toBe(20);
+    expect(lotsAfterReverse.json()[0].status).toBe('ACTIVE');
+
+    await app.close();
+  });
+
   it('失効バッチはADMINのみ実行可能で、同一lotを二重失効しない', async () => {
     const app = buildApp();
     const systemRes = await app.inject({
