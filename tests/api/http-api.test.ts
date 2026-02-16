@@ -60,6 +60,88 @@ describe('HTTP API', () => {
     await app.close();
   });
 
+  it('Idempotency-Keyヘッダで二重計上を防止できる', async () => {
+    const app = buildApp();
+
+    const systemRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-idem-header', ownerType: 'SYSTEM', ownerId: 'SYSTEM' }
+    });
+    const userRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/accounts',
+      payload: { tenantId: 't-idem-header', ownerType: 'USER', ownerId: 'u-idem-header' }
+    });
+    expect(systemRes.statusCode).toBe(200);
+    expect(userRes.statusCode).toBe(200);
+    const system = systemRes.json();
+    const user = userRes.json();
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'idempotency-key': 'idem-header-1'
+      },
+      payload: {
+        tenantId: 't-idem-header',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 15, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -15 }
+        ]
+      }
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'idempotency-key': 'idem-header-1'
+      },
+      payload: {
+        tenantId: 't-idem-header',
+        txType: 'EARN',
+        entries: [
+          { accountId: user.accountId, amount: 15, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -15 }
+        ]
+      }
+    });
+    expect(second.statusCode).toBe(200);
+    expect(second.json().transaction.txId).toBe(first.json().transaction.txId);
+
+    const txs = await app.inject({
+      method: 'GET',
+      url: '/api/v1/transactions?tenantId=t-idem-header'
+    });
+    expect(txs.statusCode).toBe(200);
+    expect(txs.json()).toHaveLength(1);
+
+    const mismatch = await app.inject({
+      method: 'POST',
+      url: '/api/v1/transactions',
+      headers: {
+        'idempotency-key': 'idem-header-2'
+      },
+      payload: {
+        tenantId: 't-idem-header',
+        txType: 'ADJUST',
+        idempotencyKey: 'idem-body-2',
+        entries: [
+          { accountId: user.accountId, amount: 1, expiresAt: '2026-12-31T00:00:00.000Z' },
+          { accountId: system.accountId, amount: -1 }
+        ]
+      }
+    });
+    expect(mismatch.statusCode).toBe(400);
+    expect(mismatch.json().code).toBe('IDEMPOTENCY_KEY_MISMATCH');
+
+    await app.close();
+  });
+
   it('口座作成はADMINのみ許可される', async () => {
     const app = buildApp();
 

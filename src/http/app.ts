@@ -55,6 +55,19 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
   return Math.min(max, Math.max(min, Math.trunc(value)));
 }
 
+function readOptionalHeaderValue(headers: Record<string, unknown>, headerName: string): string | null {
+  const raw = headers[headerName];
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  if (first === undefined || first === null) {
+    return null;
+  }
+  const value = String(first).trim();
+  return value.length > 0 ? value : null;
+}
+
 function resolveActorKey(
   auth: { role: Role; userId: string | null },
   ip: string,
@@ -206,6 +219,17 @@ export function buildApp(service = new LedgerService(), options?: AppOptions) {
   app.post('/api/v1/transactions', async (request) => {
     const body = postTransactionSchema.parse(request.body);
     const auth = readRole(request.headers);
+    const idempotencyKeyFromHeader = readOptionalHeaderValue(request.headers, 'idempotency-key');
+    if (idempotencyKeyFromHeader) {
+      if (body.idempotencyKey && body.idempotencyKey !== idempotencyKeyFromHeader) {
+        throw new DomainError(
+          'IDEMPOTENCY_KEY_MISMATCH',
+          'idempotencyKey in request body must match Idempotency-Key header',
+          400
+        );
+      }
+      body.idempotencyKey = idempotencyKeyFromHeader;
+    }
 
     if (auth.role === 'VIEWER') {
       throw new ForbiddenError('VIEWER cannot post transactions');
