@@ -1,0 +1,19 @@
+{
+  "runTimestampUtc": "20260408T005941Z",
+  "aeFrameworkDir": "/home/runner/work/ae-framework-test-06-Point-Ledger-Service/ae-framework-test-06-Point-Ledger-Service/.tools/ae-framework",
+  "specFile": "spec/point-ledger-service.ae.md",
+  "commands": [
+    "ae spec validate",
+    "ae spec lint",
+    "ae spec export -f kiro"
+  ],
+  "outputs": [
+    ".ae/ae-ir.json",
+    ".ae/ae-ir.sha256",
+    ".kiro/specs",
+    "artifacts/runs/20260408T005941Z/ae-ir.json",
+    "artifacts/runs/20260408T005941Z/ae-ir.sha256",
+    "artifacts/runs/20260408T005941Z/kiro-specs"
+  ],
+  "status": "success"
+}
