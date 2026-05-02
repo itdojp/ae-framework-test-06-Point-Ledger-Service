@@ -1,0 +1,13 @@
+{
+  "runTimestampUtc": "20260502T022322Z",
+  "trigger": "schedule",
+  "checks": [
+    "pnpm run typecheck",
+    "pnpm run test:e2e:postgres"
+  ],
+  "database": "postgres://postgres@localhost:5432/point_ledger",
+  "retryPolicy": {
+    "vitestRetry": 2
+  },
+  "status": "success"
+}
