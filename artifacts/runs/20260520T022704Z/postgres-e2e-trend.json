@@ -1,0 +1,125 @@
+{
+  "generatedAtUtc": "2026-05-20T02:27:08.451Z",
+  "repository": "itdojp/ae-framework-test-06-Point-Ledger-Service",
+  "workflow": "postgres-e2e.yml",
+  "windowDays": 14,
+  "windowStartUtc": "2026-05-06T02:27:08.451Z",
+  "status": "ok",
+  "sampledRuns": 130,
+  "inWindowRuns": 14,
+  "completedRuns": 13,
+  "countsByConclusion": {
+    "success": 13
+  },
+  "countsByEvent": {
+    "schedule": 13
+  },
+  "successRate": 1,
+  "rerunCount": 0,
+  "recentCompletedLimit": 10,
+  "recentCompletedRuns": [
+    {
+      "id": 26072397473,
+      "runNumber": 129,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-19T02:25:59Z",
+      "updatedAt": "2026-05-19T02:26:45Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/26072397473"
+    },
+    {
+      "id": 26010216080,
+      "runNumber": 128,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-18T02:25:43Z",
+      "updatedAt": "2026-05-18T02:26:34Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/26010216080"
+    },
+    {
+      "id": 25979074627,
+      "runNumber": 127,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-17T02:24:58Z",
+      "updatedAt": "2026-05-17T02:25:50Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25979074627"
+    },
+    {
+      "id": 25950354807,
+      "runNumber": 126,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-16T02:23:06Z",
+      "updatedAt": "2026-05-16T02:23:50Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25950354807"
+    },
+    {
+      "id": 25896858400,
+      "runNumber": 125,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-15T02:24:38Z",
+      "updatedAt": "2026-05-15T02:25:33Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25896858400"
+    },
+    {
+      "id": 25837963962,
+      "runNumber": 124,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-14T02:24:41Z",
+      "updatedAt": "2026-05-14T02:25:25Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25837963962"
+    },
+    {
+      "id": 25774361605,
+      "runNumber": 123,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-13T02:24:19Z",
+      "updatedAt": "2026-05-13T02:25:12Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25774361605"
+    },
+    {
+      "id": 25709424360,
+      "runNumber": 122,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-12T02:23:29Z",
+      "updatedAt": "2026-05-12T02:24:19Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25709424360"
+    },
+    {
+      "id": 25647041280,
+      "runNumber": 121,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-11T02:24:40Z",
+      "updatedAt": "2026-05-11T02:25:31Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25647041280"
+    },
+    {
+      "id": 25617579893,
+      "runNumber": 120,
+      "attempt": 1,
+      "event": "schedule",
+      "conclusion": "success",
+      "createdAt": "2026-05-10T02:23:31Z",
+      "updatedAt": "2026-05-10T02:24:20Z",
+      "url": "https://github.com/itdojp/ae-framework-test-06-Point-Ledger-Service/actions/runs/25617579893"
+    }
+  ],
+  "recentCompletedSuccessRate": 1,
+  "recentCompletedRerunCount": 0,
+  "recentFailures": []
+}
